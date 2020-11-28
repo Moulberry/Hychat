@@ -1,0 +1,9 @@
+{
+  "package": "io.github.moulberry.hychat.mixins",
+  "refmap": "mixins.hychat.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinGuiChat",
+    "MixinGuiNewChat"
+  ]
+}
