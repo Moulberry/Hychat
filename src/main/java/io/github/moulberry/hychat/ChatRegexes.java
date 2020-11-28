@@ -13,6 +13,18 @@ public class ChatRegexes {
     public static final String HYPIXEL_RANKED_NAME_REGEX =  HYPIXEL_RANK_PREFIX_REGEX+" "+MC_NAME_REGEX;
     public static final String HYPIXEL_NAME_REGEX =  "(?:"+HYPIXEL_RANK_PREFIX_REGEX+" "+MC_NAME_REGEX+"|\u00A77"+MC_NAME_REGEX+")";
 
+    public static final String PARTY_TALK = "{RESET}{BLUE}Party {DARK_GRAY}> (.*)";
+    public static final String PARTY_INVITE = "{HYPIXEL_NAME} {RESET}{YELLOW}invited {RESET}{HYPIXEL_NAME} {RESET}{YELLOW}to the party! They have {RESET}{RED}" +
+            "60 {RESET}{YELLOW}seconds to accept.{RESET}";
+    public static final String PARTY_OTHER_LEAVE = "{HYPIXEL_NAME} {RESET}{YELLOW}has left the party.{RESET}";
+    public static final String PARTY_OTHER_JOIN = "{HYPIXEL_NAME} {RESET}{YELLOW}joined the party.{RESET}";
+    public static final String PARTY_LEAVE = "{YELLOW}You left the party.{RESET}";
+    public static final String PARTY_JOIN = "{YELLOW}You have joined {RESET}{HYPIXEL_NAME}'s {RESET}{YELLOW}party!{RESET}";
+    public static final String PARTY_DISBANDED = "{RED}The party was disbanded because all invites expired and the party was empty{RESET}";
+    public static final String PARTY_INVITE_NOT_ONLINE = "{RED}You cannot invite that player since they're not online.{RESET}";
+    public static final String PARTY_HOUSING_WARP = "{YELLOW}The party leader, {HYPIXEL_NAME}{RESET}{YELLOW}, warped you to {HYPIXEL_NAME}{RESET}{YELLOW}'s house.{RESET}";
+
+
     public static String substitute(String str) {
         str = str.replace("{ANY_COLOUR}", ANY_COLOUR_REGEX);
         str = str.replace("{ANY_COLOUR_OPT}", ANY_COLOUR_OPT_REGEX);

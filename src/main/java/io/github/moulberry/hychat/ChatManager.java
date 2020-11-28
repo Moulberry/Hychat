@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static net.minecraft.util.EnumChatFormatting.*;
+import static io.github.moulberry.hychat.ChatRegexes.*;
 
 public class ChatManager {
 
@@ -19,17 +20,15 @@ public class ChatManager {
         this.tabs.add(new ChatTab("All"));
         this.tabs.add(new ChatTab("Filtered").withMatch(".*{HYPIXEL_NAME}.*").withIgnore(".*filter.*"));
         this.tabs.add(new ChatTab("Party")
-                        .withMatch("{RESET}{BLUE}Party {DARK_GRAY}> (.*)")
-                        .withMatch("{HYPIXEL_NAME} {RESET}{YELLOW}invited {RESET}{HYPIXEL_NAME} {RESET}{YELLOW}to the party! They have {RESET}{RED}" +
-                                "60 {RESET}{YELLOW}seconds to accept.{RESET}")
-                        .withMatch("{HYPIXEL_NAME} {RESET}{YELLOW}has left the party.{RESET}")
-                        .withMatch("{HYPIXEL_NAME} {RESET}{YELLOW}joined the party.{RESET}")
-                        .withMatch("{YELLOW}You left the party.{RESET}")
-                        .withMatch("{YELLOW}You have joined {RESET}{HYPIXEL_NAME}'s {RESET}{YELLOW}party!{RESET}")
-                        .withMatch("{RED}The party was disbanded because all invites expired and the party was empty{RESET}")
-                        .withMatch("{RED}You cannot invite that player since they're not online.{RESET}")
-                        .withMatch("{YELLOW}The party leader, {HYPIXEL_NAME}{RESET}{YELLOW}, warped you to {HYPIXEL_NAME}{RESET}{YELLOW}'s house.{RESET}")
-                        /*.withMatch(".*"+YELLOW+"invited.*")*/
+                        .withMatch(PARTY_TALK)
+                        .withMatch(PARTY_INVITE)
+                        .withMatch(PARTY_OTHER_LEAVE)
+                        .withMatch(PARTY_OTHER_JOIN)
+                        .withMatch(PARTY_LEAVE)
+                        .withMatch(PARTY_JOIN)
+                        .withMatch(PARTY_DISBANDED)
+                        .withMatch(PARTY_INVITE_NOT_ONLINE)
+                        .withMatch(PARTY_HOUSING_WARP)
                         .withMessagePrefix("/pc "));
         this.tabs.add(new ChatTab("Guild")
                 .withMatch(RESET.toString()+DARK_GREEN+"Guild > (.*)")
