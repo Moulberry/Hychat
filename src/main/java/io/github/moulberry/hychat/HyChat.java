@@ -1,5 +1,8 @@
 package io.github.moulberry.hychat;
 
+import io.github.moulberry.hychat.chat.ChatManager;
+import io.github.moulberry.hychat.event.EventListener;
+import io.github.moulberry.hychat.gui.GuiChatOverlay;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
@@ -12,10 +15,12 @@ public class HyChat {
 
     private static HyChat INSTANCE;
     private ChatManager chatManager;
+    private GuiChatOverlay chatOverlay;
 
     @EventHandler
     public void preinit(FMLPreInitializationEvent event) {
         chatManager = new ChatManager();
+        chatOverlay = new GuiChatOverlay();
         INSTANCE = this;
 
         MinecraftForge.EVENT_BUS.register(new EventListener());
@@ -27,5 +32,9 @@ public class HyChat {
 
     public ChatManager getChatManager() {
         return chatManager;
+    }
+
+    public GuiChatOverlay getChatOverlay() {
+        return chatOverlay;
     }
 }

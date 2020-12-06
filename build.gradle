@@ -19,7 +19,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-version = "1.1-REL"
+version = "1.4-BETA"
 group= "io.github.moulberry"
 archivesBaseName = "Hychat"
 String modid = "hychat"
@@ -104,6 +104,4 @@ processResources
     from(sourceSets.main.resources.srcDirs) {
         exclude 'mcmod.info'
     }
-
-    rename '(.+_at.cfg)', 'META-INF/$1'
 }

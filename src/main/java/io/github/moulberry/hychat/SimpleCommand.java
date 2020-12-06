@@ -1,4 +1,4 @@
-package io.github.moulberry.nohitfix;
+package io.github.moulberry.hychat;
 
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
