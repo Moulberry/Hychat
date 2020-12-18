@@ -1,7 +1,11 @@
-package io.github.moulberry.hychat.util;
+package io.github.moulberry.hychat.core.util;
 
+import io.github.moulberry.hychat.core.BackgroundBlur;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
@@ -10,27 +14,52 @@ import org.lwjgl.opengl.GL14;
 
 public class RenderUtils {
 
+    public static void drawFloatingRectDark(int x, int y, int width, int height) {
+        drawFloatingRectDark(x, y, width, height, true);
+    }
+
+    public static void drawFloatingRectDark(int x, int y, int width, int height, boolean shadow) {
+        int alpha = 0xf0000000;
+
+        if(OpenGlHelper.isFramebufferEnabled()) {
+            ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
+            BackgroundBlur.renderBlurredBackground(scaledResolution.getScaledWidth(),
+                    scaledResolution.getScaledHeight(), x, y, width, height);
+        } else {
+            alpha = 0xff000000;
+        }
+
+        int main = alpha | 0x202026;
+        int light = 0xff303036;
+        int dark = 0xff101016;
+        Gui.drawRect(x, y, x+1, y+height, light); //Left
+        Gui.drawRect(x+1, y, x+width, y+1, light); //Top
+        Gui.drawRect(x+width-1, y+1, x+width, y+height, dark); //Right
+        Gui.drawRect(x+1, y+height-1, x+width-1, y+height, dark); //Bottom
+        Gui.drawRect(x+1, y+1, x+width-1, y+height-1, main); //Middle
+        if(shadow) {
+            Gui.drawRect(x+width, y+2, x+width+2, y+height+2, 0x70000000); //Right shadow
+            Gui.drawRect(x+2, y+height, x+width, y+height+2, 0x70000000); //Bottom shadow
+        }
+    }
+
     public static void drawFloatingRect(int x, int y, int width, int height) {
-        GlStateManager.enableDepth();
+        drawFloatingRectWithAlpha(x, y, width, height, 0xFF, true);
+    }
 
-        GlStateManager.translate(0, 0, 1);
-
-        Gui.drawRect(x+2, y+2, x+width+2,
-                y+height+2, 0xa0000000);
-
-        GlStateManager.depthFunc(GL11.GL_LESS);
-        GlStateManager.translate(0, 0, 1);
-        Gui.drawRect(x+1, y+1, x+width-1,
-                y+height-1, 0xffc0c0c0);
-        Gui.drawRect(x, y, x+width-1,
-                y+height-1, 0xfff0f0f0);
-        Gui.drawRect(x, y, x+width,
-                y+height, 0xff909090);
-        GlStateManager.depthFunc(GL11.GL_LEQUAL);
-
-        GlStateManager.translate(0, 0, -2);
-
-        GlStateManager.disableDepth();
+    public static void drawFloatingRectWithAlpha(int x, int y, int width, int height, int alpha, boolean shadow) {
+        int main = (alpha << 24) | 0xc0c0c0;
+        int light = (alpha << 24) | 0xf0f0f0;
+        int dark = (alpha << 24) | 0x909090;
+        Gui.drawRect(x, y, x+1, y+height, light); //Left
+        Gui.drawRect(x+1, y, x+width, y+1, light); //Top
+        Gui.drawRect(x+width-1, y+1, x+width, y+height, dark); //Right
+        Gui.drawRect(x+1, y+height-1, x+width-1, y+height, dark); //Bottom
+        Gui.drawRect(x+1, y+1, x+width-1, y+height-1, main); //Middle
+        if(shadow) {
+            Gui.drawRect(x+width, y+2, x+width+2, y+height+2, (alpha*3/5) << 24); //Right shadow
+            Gui.drawRect(x+2, y+height, x+width, y+height+2, (alpha*3/5) << 24); //Bottom shadow
+        }
     }
 
     public static void drawTexturedRect(float x, float y, float width, float height) {
@@ -46,9 +75,16 @@ public class RenderUtils {
     }
 
     public static void drawTexturedRect(float x, float y, float width, float height, float uMin, float uMax, float vMin, float vMax, int filter) {
-        GlStateManager.enableTexture2D();
         GlStateManager.enableBlend();
         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+
+        drawTexturedRectNoBlend(x, y, width, height, uMin, uMax, vMin, vMax, filter);
+
+        GlStateManager.disableBlend();
+    }
+
+    public static void drawTexturedRectNoBlend(float x, float y, float width, float height, float uMin, float uMax, float vMin, float vMax, int filter) {
+        GlStateManager.enableTexture2D();
 
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, filter);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, filter);
@@ -72,8 +108,6 @@ public class RenderUtils {
 
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
-
-        GlStateManager.disableBlend();
     }
 
     public static void drawGradientRect(int zLevel, int left, int top, int right, int bottom, int startColor, int endColor) {

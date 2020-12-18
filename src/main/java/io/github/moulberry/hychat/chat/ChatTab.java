@@ -1,42 +1,81 @@
 package io.github.moulberry.hychat.chat;
 
-import io.github.moulberry.hychat.gui.GuiChatBox;
+import com.google.gson.annotations.Expose;
+import io.github.moulberry.hychat.core.util.StringUtils;
+import io.github.moulberry.hychat.gui.GuiChatTabBar;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ChatLine;
 import net.minecraft.client.gui.GuiUtilRenderComponents;
-import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.event.HoverEvent;
 import net.minecraft.util.*;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 public class ChatTab {
 
-    private boolean matchAny = true;
-    private final String tabName;
-    private String messagePrefix;
-    private boolean alwaysMatch = false;
-    private final List<String> regexMatchS = new ArrayList<>();
-    private final List<String> regexIgnoreS = new ArrayList<>();
+    @Expose private boolean matchAny = true;
+    @Expose private final String tabName;
+    @Expose private String messagePrefix;
+    @Expose private boolean alwaysMatch = false;
+    @Expose private final List<String> regexMatchS = new ArrayList<>();
+    @Expose private final List<String> regexIgnoreS = new ArrayList<>();
 
     private boolean recompileRegex = true;
     private List<Pattern> regexMatch = null;
     private List<Pattern> regexIgnore = null;
 
+    private int dynamicId = -1;
+
     private List<ExtendedChatLine> chatLines = new ArrayList<>();
     private List<ExtendedChatLine> chatLinesWrapped = new ArrayList<>();
+
+
+    //Compact chat stuff
+    private long lastCleanMillis = 0;
+    private final HashMap<Integer, ChatEntry> chatMessageMap = new HashMap<>();
+    public final HashMap<Integer, Set<ExtendedChatLine>> messagesForHash = new HashMap<>();
+
+    public static class ChatEntry {
+        int messageCount;
+        long lastSeenMessageMillis;
+
+        public ChatEntry(int messageCount, long lastSeenMessageMillis) {
+            this.messageCount = messageCount;
+            this.lastSeenMessageMillis = lastSeenMessageMillis;
+        }
+    }
+
+    public static class ChatComponentIgnored extends ChatComponentText {
+        public ChatComponentIgnored(String msg) {
+            super(msg);
+        }
+    }
+
+    private ChatTab() { //Default constructor for Gson
+        this.tabName = null;
+    }
 
     public ChatTab(String tabName) {
         this.tabName = tabName;
     }
 
+    public int getDynamicId() {
+        return dynamicId;
+    }
+
+    public void setDynamicId(int dynamicId) {
+        this.dynamicId = dynamicId;
+    }
+
     public List<ExtendedChatLine> getChatLines() {
         return Collections.unmodifiableList(chatLinesWrapped);
+    }
+
+    public List<ExtendedChatLine> getFullChatLines() {
+        return Collections.unmodifiableList(chatLines);
     }
 
     public String getTabName() {
@@ -45,6 +84,10 @@ public class ChatTab {
 
     public String getMessagePrefix() {
         return messagePrefix;
+    }
+
+    public boolean getAlwaysMatch() {
+        return alwaysMatch || regexMatchS.isEmpty();
     }
 
     public ChatTab alwaysMatch() {
@@ -102,11 +145,31 @@ public class ChatTab {
         recompileRegex = false;
     }
 
-    public boolean setChatLine(IChatComponent chatComponent, int chatLineId, int updateCounter, boolean refresh, int scaledWidth) {
+    public boolean isDivider(String clean) {
+        boolean divider = true;
+        if(clean.length() < 5) {
+            divider = false;
+        } else {
+            for(int i=0; i<clean.length(); i++) {
+                char c = clean.charAt(i);
+                if(c != '-' && c != '=' && c != '\u25AC') {
+                    divider = false;
+                    break;
+                }
+            }
+        }
+        return divider;
+    }
+
+    public int setChatLine(GuiChatTabBar bar, IChatComponent chatComponent, int chatLineId, int uniqueId,
+                           int updateCounter, boolean refresh, int scaledWidth) {
+        String clean = StringUtils.cleanColour(chatComponent.getUnformattedText()).trim();
+        boolean divider = isDivider(clean);
+
         if(!refresh) {
             chatComponent = processChatComponent(chatComponent);
             if(chatComponent == null) {
-                return false;
+                return 0;
             }
         }
 
@@ -114,11 +177,74 @@ public class ChatTab {
             this.deleteChatLine(chatLineId);
         }
 
+        long currentTime = System.currentTimeMillis();
+        if(currentTime - lastCleanMillis > 300*1000 && !chatMessageMap.isEmpty()) {
+            lastCleanMillis = currentTime;
+            cleanCompactChatMaps();
+        }
+
+        int currentMessageHash = -1;
+        if (!clean.isEmpty() && !divider) {
+            currentMessageHash = getChatComponentHash(chatComponent);
+
+            if(!refresh) {
+                if (!chatMessageMap.containsKey(currentMessageHash)) {
+                    chatMessageMap.put(currentMessageHash, new ChatEntry(1, currentTime));
+                } else {
+                    ChatEntry entry = chatMessageMap.get(currentMessageHash);
+                    if (currentTime - entry.lastSeenMessageMillis > 120*1000) { //Don't compact messages from more than 120s ago, add config option if you want
+                        chatMessageMap.put(currentMessageHash, new ChatEntry(1, currentTime));
+                    } else if (bar.chatBox.getConfig().tweaks.compactChat) {
+                        boolean deleted = deleteMessageByHash(currentMessageHash);
+                        if (!deleted) { //deleteMessageByHash only searches the last 100 messages. If nothing was removed, reset counter
+                            chatMessageMap.put(currentMessageHash, new ChatEntry(1, currentTime));
+                        } else {
+                            entry.messageCount++;
+                            entry.lastSeenMessageMillis = currentTime;
+                            if (bar.chatBox.getConfig().tweaks.compactChatCount) {
+                                chatComponent.appendSibling(new ChatComponentIgnored(EnumChatFormatting.GRAY + " (" + entry.messageCount + ")"));
+                            }
+                        }
+                    } else {
+                        entry.messageCount++;
+                        entry.lastSeenMessageMillis = currentTime;
+                    }
+                }
+            }
+        }
+
         List<IChatComponent> list = GuiUtilRenderComponents.func_178908_a(chatComponent, scaledWidth,
                 Minecraft.getMinecraft().fontRendererObj, false, false);
 
+        int addedLines = 0;
+        boolean lastDividerPartial = false;
         for(IChatComponent ichatcomponent : list) {
-            this.chatLinesWrapped.add(0, new ExtendedChatLine(updateCounter, ichatcomponent, chatComponent, chatLineId));
+            if(bar.chatBox.getConfig().tweaks.smartDividers && !divider) {
+                String cleanWrap = StringUtils.cleanColour(ichatcomponent.getUnformattedText());
+
+                boolean thisDivider = true;
+                for(int i=0; i<cleanWrap.length(); i++) {
+                    char c = cleanWrap.charAt(i);
+                    if(c != '-' && c != '=' && c != '\u25AC') {
+                        thisDivider = false;
+                        break;
+                    }
+                }
+                if(lastDividerPartial && thisDivider) {
+                    continue;
+                }
+                if(cleanWrap.length() >= 5) {
+                    lastDividerPartial = thisDivider;
+                }
+            }
+
+            addedLines++;
+            ExtendedChatLine line = new ExtendedChatLine(updateCounter, ichatcomponent,
+                    chatComponent, chatLineId).setDivider(divider).setUniqueId(uniqueId);
+            this.chatLinesWrapped.add(0, line);
+            if(currentMessageHash != -1) {
+                messagesForHash.computeIfAbsent(currentMessageHash, k->new HashSet<>()).add(line);
+            }
         }
 
         while(chatLinesWrapped.size() > 1000) {
@@ -126,14 +252,19 @@ public class ChatTab {
         }
 
         if (!refresh) {
-            this.chatLines.add(0, new ExtendedChatLine(updateCounter, chatComponent, chatComponent, chatLineId));
+            ExtendedChatLine line = new ExtendedChatLine(updateCounter, chatComponent,
+                    chatComponent, chatLineId).setDivider(divider).setUniqueId(uniqueId);
+            this.chatLines.add(0, line);
+            if(currentMessageHash != -1) {
+                messagesForHash.computeIfAbsent(currentMessageHash, k->new HashSet<>()).add(line);
+            }
 
             while (this.chatLines.size() > 1000) {
                 this.chatLines.remove(this.chatLines.size() - 1);
             }
         }
 
-        return true;
+        return addedLines;
     }
 
     public void deleteChatLine(int lineId) {
@@ -141,11 +272,23 @@ public class ChatTab {
         deleteChatLine(chatLinesWrapped.iterator(), lineId, false);
     }
 
-    public void refreshChat(int scaledWidth) {
+    public void cleanCompactChatMaps() {
+        chatMessageMap.entrySet().removeIf((entry) -> {
+            if(entry.getValue().lastSeenMessageMillis > 120*1000) {
+                messagesForHash.remove(entry.getKey());
+                return true;
+            }
+            return false;
+        });
+    }
+
+    public void refreshChat(GuiChatTabBar bar, int scaledWidth) {
         chatLinesWrapped.clear();
+        chatMessageMap.clear();
+        messagesForHash.clear();
         for(int i=chatLines.size()-1; i>=0; i--) {
-            ChatLine chatLine = chatLines.get(i);
-            setChatLine(chatLine.getChatComponent(), chatLine.getChatLineID(),
+            ExtendedChatLine chatLine = chatLines.get(i);
+            setChatLine(bar, chatLine.getChatComponent(), chatLine.getChatLineID(), chatLine.getUniqueId(),
                     chatLine.getUpdatedCounter(), true, scaledWidth);
         }
     }
@@ -163,7 +306,7 @@ public class ChatTab {
 
     public IChatComponent processChatComponent(IChatComponent chatComponent) {
         if(alwaysMatch) {
-            return chatComponent;
+            return chatComponent.createCopy();
         }
 
         if(regexMatch == null || regexIgnore == null || recompileRegex) {
@@ -211,6 +354,130 @@ public class ChatTab {
         }
 
         return null;
+    }
+
+    private boolean deleteMessageByHash(int hashCode) {
+        if(!messagesForHash.containsKey(hashCode) || messagesForHash.get(hashCode).isEmpty()) {
+            return false;
+        }
+
+        Set<ExtendedChatLine> toRemove = messagesForHash.get(hashCode);
+        messagesForHash.remove(hashCode);
+
+        int normalSearchLen = 100;
+        int wrappedSearchLen = 300;
+
+        boolean removedMessage = false;
+        {
+            for(int i=0; i<chatLines.size() && i<normalSearchLen; i++) {
+                ExtendedChatLine line = chatLines.get(i);
+                if(toRemove.contains(line)) {
+                    removedMessage = true;
+                    chatLines.remove(i);
+                    i--;
+
+                    if(i < 0 || i >= chatLines.size()) {
+                        continue;
+                    }
+
+                    ExtendedChatLine prevLine = chatLines.get(i);
+                    if(isDivider(StringUtils.cleanColour(prevLine.getChatComponent().getUnformattedText())) &&
+                            Math.abs(line.getUpdatedCounter() - prevLine.getUpdatedCounter()) <= 2) {
+                        chatLines.remove(i);
+                    }
+
+                    if(i >= chatLines.size()) {
+                        continue;
+                    }
+
+                    ExtendedChatLine nextLine = chatLines.get(i);
+                    if(isDivider(StringUtils.cleanColour(nextLine.getChatComponent().getUnformattedText())) &&
+                            Math.abs(line.getUpdatedCounter() - nextLine.getUpdatedCounter()) <= 2) {
+                        chatLines.remove(i);
+                        i--;
+                    }
+                }
+            }
+        }
+        if(!removedMessage) {
+            return false;
+        }
+        for(int i=0; i<chatLinesWrapped.size() && i<wrappedSearchLen; i++) {
+            ExtendedChatLine line = chatLinesWrapped.get(i);
+            if(toRemove.contains(line)) {
+                chatLinesWrapped.remove(i);
+                i--;
+
+                if(i < 0 || i >= chatLinesWrapped.size()) {
+                    continue;
+                }
+
+                ExtendedChatLine prevLine = chatLinesWrapped.get(i);
+                if(isDivider(StringUtils.cleanColour(prevLine.getChatComponent().getUnformattedText())) &&
+                        Math.abs(line.getUpdatedCounter() - prevLine.getUpdatedCounter()) <= 2) {
+                    chatLinesWrapped.remove(i);
+                }
+
+                if(i >= chatLinesWrapped.size()) {
+                    continue;
+                }
+
+                ExtendedChatLine nextLine = chatLinesWrapped.get(i);
+                if(isDivider(StringUtils.cleanColour(nextLine.getChatComponent().getUnformattedText())) &&
+                        Math.abs(line.getUpdatedCounter() - nextLine.getUpdatedCounter()) <= 2) {
+                    chatLinesWrapped.remove(i);
+                    i--;
+                }
+            }
+        }
+        return true;
+    }
+
+    public static int getChatStyleHash(ChatStyle style) {
+        HoverEvent hover = style.getChatHoverEvent();
+        HoverEvent.Action hoverAction = null;
+        int hoverChatHash = 0;
+        if(hover != null) {
+            hoverAction = hover.getAction();
+            hoverChatHash = getChatComponentHash(hover.getValue());
+        }
+
+        return Objects.hash(style.getColor(),
+                style.getBold(),
+                style.getItalic(),
+                style.getUnderlined(),
+                style.getStrikethrough(),
+                style.getObfuscated(),
+                hoverAction,
+                hoverChatHash,
+                style.getChatClickEvent(),
+                style.getInsertion());
+    }
+
+    public static int getChatComponentHash(IChatComponent chatComponent) {
+        List<Integer> siblingHashes = new ArrayList<>();
+        for(IChatComponent sibling : chatComponent.getSiblings()) {
+            if(!(sibling instanceof ChatComponentIgnored) &&
+                    sibling instanceof ChatComponentStyle) {
+                siblingHashes.add(getChatComponentHash(sibling));
+            }
+        }
+
+        if(chatComponent instanceof ChatComponentIgnored) {
+            return Objects.hash(siblingHashes);
+        }
+
+        /*if(chatComponent instanceof ChatComponentIgnored) {
+            if(chatComponent.getSiblings().isEmpty()) {
+                return 0;
+            } else {
+                return Objects.hash(siblingHashes);
+            }
+        }*/
+
+        return Objects.hash(chatComponent.getUnformattedTextForChat(),
+                siblingHashes,
+                getChatStyleHash(chatComponent.getChatStyle()));
     }
 
     public ChatComponentText cutCharactersFromText(int characters, ChatComponentText text) {

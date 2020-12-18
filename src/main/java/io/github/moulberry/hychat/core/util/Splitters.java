@@ -1,4 +1,4 @@
-package io.github.moulberry.hychat.util;
+package io.github.moulberry.hychat.core.util;
 
 import com.google.common.base.Splitter;
 

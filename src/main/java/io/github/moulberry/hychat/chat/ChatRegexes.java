@@ -5,13 +5,13 @@ import org.omg.CORBA.Any;
 
 public class ChatRegexes {
 
-    public static final String ANY_COLOUR_REGEX = "\u00A7[a-zA-Z0-9]";
+    public static final String ANY_COLOUR_REGEX = "(?:\u00A7[a-zA-Z0-9])";
     public static final String ANY_COLOUR_OPT_REGEX = "(?:"+ANY_COLOUR_REGEX+")?";
     public static final String MC_NAME_REGEX = "[a-zA-Z0-9_]+";
-    public static final String HYPIXEL_RANK_PREFIX_REGEX = ANY_COLOUR_REGEX+"*\\[(?:VIP|VIP\u00A7r\u00A76\\+|MVP|MVP\u00A7r"+ANY_COLOUR_REGEX+"\\+|MVP\u00A7r"+ANY_COLOUR_REGEX+"\\+\\+)"
+    public static final String HYPIXEL_RANK_PREFIX_REGEX = ANY_COLOUR_REGEX+"*\\[(?:VIP|VIP\u00A7r\u00A76\\+|MVP|MVP(?:\u00A7r)?"+ANY_COLOUR_REGEX+"\\+|MVP(?:\u00A7r)?"+ANY_COLOUR_REGEX+"\\+\\+)"
             +"(?:\u00A7r)?"+ANY_COLOUR_OPT_REGEX+"\\]";
     public static final String HYPIXEL_RANKED_NAME_REGEX =  HYPIXEL_RANK_PREFIX_REGEX+" "+MC_NAME_REGEX;
-    public static final String HYPIXEL_NAME_REGEX =  "(?:"+HYPIXEL_RANK_PREFIX_REGEX+" "+MC_NAME_REGEX+"|\u00A77"+MC_NAME_REGEX+")";
+    public static final String HYPIXEL_NAME_REGEX = "(?:"+HYPIXEL_RANK_PREFIX_REGEX+" "+MC_NAME_REGEX+"|\u00A77"+MC_NAME_REGEX+")";
 
     public static final String PARTY_TALK = "{RESET}{BLUE}Party {DARK_GRAY}> (.*)";
     public static final String PARTY_TALK_HYTILS = "{RESET}{BLUE}P {DARK_GRAY}> (.*)";
@@ -53,6 +53,8 @@ public class ChatRegexes {
     public static final String PARTY_INVITE_NOPERMS = "{RED}You are not allowed to invite players\\.{RESET}";//works
     public static final String PARTY_DC_LEADER = "{YELLOW}The party leader, {RESET}{HYPIXEL_NAME} {RESET}{YELLOW}has disconnected, they have {RESET}{RED}5 {RESET}{YELLOW}minutes to rejoin before the party is disbanded\\.{RESET}";
     public static final String PARTY_DC_OTHER = "{HYPIXEL_NAME} {RESET}{YELLOW}has disconnected, they have {RESET}{RED}5 {RESET}{YELLOW}minutes to rejoin before they are removed from the party.{RESET}";
+
+    //§dDungeon Finder §f> §r§r§eYour dungeon group is full!§r§6 Click here to warp to the dungeon!§r
 
     public static final String[] PARTY = {
             PARTY_TALK, PARTY_INVITE, PARTY_OTHER_LEAVE, PARTY_OTHER_JOIN, PARTY_LEAVE, PARTY_JOIN, PARTY_DISBANDED,

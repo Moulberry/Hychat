@@ -1,19 +1,88 @@
-package io.github.moulberry.hychat.util;
+package io.github.moulberry.hychat.core.util;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.WorldRenderer;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
+import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TextRenderUtils {
+
+    public static int getCharVertLen(char c) {
+        if("acegmnopqrsuvwxyz".indexOf(c) >= 0) {
+            return 5;
+        } else {
+            return 7;
+        }
+    }
+
+    public static float getVerticalHeight(String str) {
+        str = StringUtils.cleanColour(str);
+        float height = 0;
+        for(int i=0; i<str.length(); i++) {
+            char c = str.charAt(i);
+            int charHeight =  getCharVertLen(c);
+            height += charHeight + 1.5f;
+        }
+        return height;
+    }
+
+    public static void drawStringVertical(String str, FontRenderer fr, float x, float y, boolean shadow, int colour) {
+        String format = FontRenderer.getFormatFromString(str);
+        str = StringUtils.cleanColour(str);
+        for(int i=0; i<str.length(); i++) {
+            char c = str.charAt(i);
+
+            int charHeight =  getCharVertLen(c);
+            int charWidth = fr.getCharWidth(c);
+            fr.drawString(format+c, x+(5-charWidth)/2f, y-7+charHeight, colour, shadow);
+
+            y += charHeight + 1.5f;
+        }
+    }
+
+    public static void drawStringScaledMaxWidth(String str, FontRenderer fr, float x, float y, boolean shadow, int len, int colour) {
+        int strLen = fr.getStringWidth(str);
+        float factor = len/(float)strLen;
+        factor = Math.min(1, factor);
+
+        drawStringScaled(str, fr, x, y, shadow, colour, factor);
+    }
+
+    public static void drawStringCentered(String str, FontRenderer fr, float x, float y, boolean shadow, int colour) {
+        int strLen = fr.getStringWidth(str);
+
+        float x2 = x - strLen/2f;
+        float y2 = y - fr.FONT_HEIGHT/2f;
+
+        GL11.glTranslatef(x2, y2, 0);
+        fr.drawString(str, 0, 0, colour, shadow);
+        GL11.glTranslatef(-x2, -y2, 0);
+    }
+
+    public static void drawStringScaled(String str, FontRenderer fr, float x, float y, boolean shadow, int colour, float factor) {
+        GlStateManager.scale(factor, factor, 1);
+        fr.drawString(str, x/factor, y/factor, colour, shadow);
+        GlStateManager.scale(1/factor, 1/factor, 1);
+    }
+
+    public static void drawStringCenteredScaledMaxWidth(String str, FontRenderer fr, float x, float y, boolean shadow, int len, int colour) {
+        int strLen = fr.getStringWidth(str);
+        float factor = len/(float)strLen;
+        factor = Math.min(1, factor);
+        int newLen = Math.min(strLen, len);
+
+        float fontHeight = 8*factor;
+
+        drawStringScaled(str, fr, x-newLen/2, y-fontHeight/2, shadow, colour, factor);
+    }
 
     public static void renderToolTip(ItemStack stack, int mouseX, int mouseY, int screenWidth, int screenHeight, FontRenderer fontStd) {
         List<String> list = stack.getTooltip(Minecraft.getMinecraft().thePlayer,
@@ -142,6 +211,59 @@ public class TextRenderUtils {
             GlStateManager.enableRescaleNormal();
         }
         GlStateManager.disableLighting();
+    }
+
+    public static int drawTextParagraph(String str, FontRenderer fr, boolean shadow, int x, int y, int len, int colour, int maxLines) {
+        return drawTextParagraph(str, fr, shadow, x, y, len, colour, maxLines, 1);
+    }
+
+    public static int drawTextParagraph(String str, FontRenderer fr, boolean shadow, int x, int y, int len, int colour, int maxLines, float scale) {
+        len = (int)(len/scale);
+
+        int yOff = 0;
+        String excess;
+        String trimmed = StringUtils.trimToWidth(str, len);
+
+        StringBuilder colourCodes = new StringBuilder();
+        Pattern pattern = Pattern.compile("\\u00A7.");
+        Matcher matcher = pattern.matcher(trimmed);
+        while(matcher.find()) {
+            colourCodes.append(matcher.group());
+        }
+
+        boolean firstLine = true;
+        int trimmedCharacters = trimmed.length();
+        int lines = 0;
+        while((lines++<maxLines) || maxLines<0) {
+            if(trimmed.length() == str.length()) {
+                if(fr != null) drawStringScaled(trimmed, fr, x, y+yOff, shadow, colour, scale);
+                break;
+            } else if(trimmed.isEmpty()) {
+                yOff -= 12*scale;
+                break;
+            } else {
+                if(firstLine) {
+                    if(fr != null) drawStringScaled(trimmed, fr, x, y+yOff, shadow, colour, scale);
+                    firstLine = false;
+                } else {
+                    if(trimmed.startsWith(" ")) {
+                        trimmed = trimmed.substring(1);
+                    }
+                    if(fr != null) drawStringScaled(colourCodes + trimmed, fr, x, y+yOff, shadow, colour, scale);
+                }
+
+                excess = str.substring(trimmedCharacters);
+                trimmed = StringUtils.trimToWidth(excess, len);
+                trimmedCharacters += trimmed.length();
+                yOff += 12*scale;
+            }
+        }
+        if(lines-1 == maxLines) yOff -= 12*scale;
+        return yOff;
+    }
+
+    public static int getParagraphHeight(String str, int len, int maxLines, float scale) {
+        return drawTextParagraph(str, null, false, 0, 0, len, 0, maxLines, scale) + (int)(8*scale);
     }
 
 }

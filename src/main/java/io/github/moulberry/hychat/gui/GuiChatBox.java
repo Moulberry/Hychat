@@ -1,22 +1,24 @@
 package io.github.moulberry.hychat.gui;
 
-import com.google.common.collect.Queues;
+import com.google.gson.annotations.Expose;
+import io.github.moulberry.hychat.HyChat;
+import io.github.moulberry.hychat.Resources;
+import io.github.moulberry.hychat.config.chatbox.ChatboxConfig;
+import io.github.moulberry.hychat.core.ChromaColour;
 import io.github.moulberry.hychat.mixins.GuiScreenAccessor;
 import io.github.moulberry.hychat.chat.ChatTab;
-import io.github.moulberry.hychat.resources.CursorIcons;
-import io.github.moulberry.hychat.util.MiscUtils;
+import io.github.moulberry.hychat.core.util.MiscUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
-import net.minecraft.client.renderer.chunk.ChunkCompileTaskGenerator;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.MathHelper;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 
 public class GuiChatBox {
 
@@ -31,53 +33,71 @@ public class GuiChatBox {
     private static final int NESW = 0b11;
     private static final int MOVE = 0b100;
 
-    private final GuiChatTabBar tabBar;
-    private final GuiChatArray chatArray;
-
-    public List<ChatTab> tabs;
-    private int selectedTab = 0;
-
     private int scrollPos = 0;
 
-    private int x = 2;
-    private int y = -28;
-    private int width = 320;
-    private int height = 180;
+    @Expose private int x = 2;
+    @Expose private int y = -28;
+    @Expose private int width = 320;
+    @Expose private int height = 180;
+    @Expose private String backgroundColour = ChromaColour.special(0, 127, 0);
+    @Expose private boolean locked = false;
+
+    @Expose private final ChatboxConfig config = new ChatboxConfig();
 
     private int grabbedSide = -1;
     private int grabbedMouseX = -1;
     private int grabbedMouseY = -1;
 
-    boolean locked = false;
+    @Expose public final GuiChatTabBar tabBar;
+    public final GuiChatArray chatArray = new GuiChatArray(this);
+
+    private GuiChatBox() { //Default constructor for Gson
+        tabBar = null;
+    }
 
     public GuiChatBox(List<ChatTab> tabs) {
-        this.tabs = tabs;
-        this.tabBar = new GuiChatTabBar(this);
-        this.chatArray = new GuiChatArray(this);
+        this.tabBar = new GuiChatTabBar(this, tabs);
     }
 
     public void deleteChatLine(int lineId) {
-        for(ChatTab tab : tabs) {
+        for(ChatTab tab : tabBar.getTabs()) {
             tab.deleteChatLine(lineId);
         }
     }
 
-    public void setChatLine(IChatComponent chatComponent, int chatLineId, int updateCounter, boolean refresh) {
+    public ChatboxConfig getConfig() {
+        return config;
+    }
+
+    public void setChatLine(IChatComponent chatComponent, int chatLineId, int uniqueId, int updateCounter, boolean refresh) {
         ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
         int scaledWidth =  MathHelper.floor_float((float)getChatWidth(scaledResolution) / getChatScale());
-        for(ChatTab tab : tabs) {
-            boolean updated =tab.setChatLine(chatComponent, chatLineId, updateCounter, refresh, scaledWidth);
-            if(updated && tab == getSelectedTab()) {
-                resetScroll();
+        for(ChatTab tab : tabBar.getTabs()) {
+            int updated = tab.setChatLine(tabBar, chatComponent, chatLineId, uniqueId, updateCounter, refresh, scaledWidth);
+            if(updated > 0 && scrollPos > 0 && tab == getSelectedTab()) {
+                scroll(updated);
             }
+        }
+    }
+
+    public String sendChatMessage(String message) {
+        if(message.startsWith("/")) {
+            return message;
+        }
+        resetScroll();
+        ChatTab tab = getSelectedTab();
+        if(tab != null && tab.getMessagePrefix() != null) {
+            return tab.getMessagePrefix() + message;
+        } else {
+            return message;
         }
     }
 
     public void refreshChat() {
         ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
         int scaledWidth =  MathHelper.floor_float((float)getChatWidth(scaledResolution) / getChatScale());
-        for(ChatTab tab : tabs) {
-            tab.refreshChat(scaledWidth);
+        for(ChatTab tab : tabBar.getTabs()) {
+            tab.refreshChat(tabBar, scaledWidth);
         }
     }
 
@@ -89,12 +109,16 @@ public class GuiChatBox {
         this.locked = locked;
     }
 
+    public String getBackgroundColour() {
+        return backgroundColour;
+    }
+
+    public void setBackgroundColour(String backgroundColour) {
+        this.backgroundColour = backgroundColour;
+    }
+
     public ChatTab getSelectedTab() {
-        if(tabs.size() == 0) {
-            return null;
-        } else {
-            return tabs.get(Math.max(0, Math.min(tabs.size()-1, selectedTab)));
-        }
+        return tabBar.getSelectedTab();
     }
 
     public void scroll(int scroll) {
@@ -117,17 +141,6 @@ public class GuiChatBox {
 
     public int getScrollPos() {
         return scrollPos;
-    }
-
-    public int getSelectedTabIndex() {
-        return selectedTab;
-    }
-
-    public void setSelectedTabIndex(int selectedTab) {
-        if(this.selectedTab != selectedTab) {
-            resetScroll();
-            this.selectedTab = selectedTab;
-        }
     }
 
     public int getChatWidth(ScaledResolution scaledResolution) {
@@ -178,14 +191,26 @@ public class GuiChatBox {
         int y = getY(scaledResolution);
         int width = getChatWidth(scaledResolution);
         int height = getChatHeight(scaledResolution);
-        if(Minecraft.getMinecraft().currentScreen instanceof GuiChat) {
-            tabBar.render(mouseX, mouseY, partialTicks, x, y);
-        }
-        if(isEditing()) {
-            Gui.drawRect(x, y-height, x+width, y, 0xb0404040);
+        boolean editing = isEditable();
+        if(editing) {
+            GlStateManager.enableDepth();
+            GlStateManager.translate(0, 0, 1);
         }
         chatArray.render(getSelectedTab().getChatLines(), mouseX, mouseY,
                 Minecraft.getMinecraft().ingameGUI.getUpdateCounter(), x, y);
+        if(editing) {
+            GlStateManager.enableDepth();
+            GlStateManager.translate(0, 0, -1);
+            Gui.drawRect(x, y-height, x+width, y, 0xb0404040);
+            GlStateManager.disableDepth();
+        }
+        if(Minecraft.getMinecraft().currentScreen instanceof GuiChat) {
+            tabBar.render(mouseX, mouseY, partialTicks, x, y);
+        } else {
+            resetScroll();
+        }
+        /*Gui.drawRect(grabbedMouseX-1, grabbedMouseY-1, grabbedMouseX+1, grabbedMouseY+1,
+                0xffff0000);*/
     }
 
     public int getGrab(int mouseX, int mouseY, ScaledResolution scaledResolution) {
@@ -230,12 +255,19 @@ public class GuiChatBox {
         return -1;
     }
 
-    public boolean isEditing() {
+    public boolean isEditable() {
         return !locked && Minecraft.getMinecraft().currentScreen instanceof GuiChat &&
                 Keyboard.isKeyDown(Keyboard.KEY_LCONTROL);
     }
 
+    public boolean isEditing() {
+        return isEditable() && grabbedSide >= 0;
+    }
+
     public int getGrabState(int side) {
+        if(side < 0) {
+            return -1;
+        }
         boolean left = (side & LEFT) != 0;
         boolean right = (side & RIGHT) != 0;
         boolean up = (side & UP) != 0;
@@ -262,16 +294,16 @@ public class GuiChatBox {
 
     public void renderOverlay(int mouseX, int mouseY, float partialTicks) {
         ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
-        //int x = getX(scaledResolution);
+        int x = getX(scaledResolution);
         int y = getY(scaledResolution);
         //int width = getChatWidth(scaledResolution);
         //int height = getChatHeight(scaledResolution);
 
-        boolean isEditing = isEditing();
+        boolean isEditing = isEditable();
 
         if(Minecraft.getMinecraft().currentScreen instanceof GuiChat) {
             IChatComponent ichatcomponent = chatArray.getHoveredComponent(getSelectedTab().getChatLines(),
-                    Mouse.getX(), Mouse.getY(), 2, y);
+                    Mouse.getX(), Mouse.getY(), x, y);
 
             if (ichatcomponent != null && ichatcomponent.getChatStyle().getChatHoverEvent() != null) {
                 ((GuiScreenAccessor)Minecraft.getMinecraft().currentScreen).invokeHandleComponentHover(ichatcomponent, mouseX, mouseY);
@@ -285,15 +317,15 @@ public class GuiChatBox {
             }
             switch(getGrabState(grabbedSide)) {
                 case MOVE:
-                    MiscUtils.setCursor(CursorIcons.MOVE, 11, 11); break;
+                    MiscUtils.setCursor(Resources.CursorIcons.MOVE, 11, 11); break;
                 case EW:
-                    MiscUtils.setCursor(CursorIcons.EW, 11, 4); break;
+                    MiscUtils.setCursor(Resources.CursorIcons.EW, 11, 4); break;
                 case NS:
-                    MiscUtils.setCursor(CursorIcons.NS, 4, 11); break;
+                    MiscUtils.setCursor(Resources.CursorIcons.NS, 4, 11); break;
                 case NESW:
-                    MiscUtils.setCursor(CursorIcons.NESW, 11, 11); break;
+                    MiscUtils.setCursor(Resources.CursorIcons.NESW, 11, 11); break;
                 case NWSE:
-                    MiscUtils.setCursor(CursorIcons.NWSE, 11, 11); break;
+                    MiscUtils.setCursor(Resources.CursorIcons.NWSE, 11, 11); break;
                 default:
                     MiscUtils.resetCursor();
             }
@@ -368,7 +400,9 @@ public class GuiChatBox {
         return deltaY;
     }
 
-
+    public boolean keyboardInput() {
+        return chatArray.keyboardInput();
+    }
 
     public void mouseInput(int mouseX, int mouseY) {
         if(!(Minecraft.getMinecraft().currentScreen instanceof GuiChat)) {
@@ -385,7 +419,7 @@ public class GuiChatBox {
 
         int button = Mouse.getEventButton();
         if(button == 0) { //left click
-            if(Mouse.getEventButtonState() && isEditing()) {
+            if(Mouse.getEventButtonState() && isEditable()) {
                 grabbedSide = getGrab(mouseX, mouseY, scaledResolution);
                 grabbedMouseX = mouseX;
                 grabbedMouseY = mouseY;
@@ -407,30 +441,34 @@ public class GuiChatBox {
                     }
                     refreshChat();
                 } else if((grabbedSide & LEFT) != 0) {
-                    this.width -= mouseX - grabbedMouseX;
+                    int delta = mouseX - grabbedMouseX;
+                    this.width -= delta;
                     if(this.width < 70) {
+                        delta -= 70 - this.width;
                         this.width = 70;
                     }
                     width = getChatWidth(scaledResolution);
-                    moveX(mouseX - grabbedMouseX, width, scaledResolution.getScaledWidth());
-                    grabbedMouseX = mouseX;
+                    moveX(delta, width, scaledResolution.getScaledWidth());
+                    grabbedMouseX += delta;
                     refreshChat();
                 }
                 if((grabbedSide & DOWN) != 0) {
-                    this.height += mouseY - grabbedMouseY;
-                    if(this.height < 100) {
-                        this.height = 100;
+                    int delta = mouseY - grabbedMouseY;
+                    this.height += delta;
+                    if(this.height < 50) {
+                        delta += 50 - this.height;
+                        this.height = 50;
                     }
                     height = getChatHeight(scaledResolution);
-                    moveY(mouseY - grabbedMouseY, height, scaledResolution.getScaledHeight());
-                    grabbedMouseY = mouseY;
+                    moveY(delta, height, scaledResolution.getScaledHeight());
+                    grabbedMouseY += delta;
                     refreshChat();
                 } else if((grabbedSide & UP) != 0) {
                     this.height -= mouseY - grabbedMouseY;
                     grabbedMouseY = mouseY;
-                    if(this.height < 100) {
-                        grabbedMouseY += 100 - this.height;
-                        this.height = 100;
+                    if(this.height < 50) {
+                        grabbedMouseY -= 50 - this.height;
+                        this.height = 50;
                     }
                     refreshChat();
                 }
