@@ -23,13 +23,6 @@ public class ChatboxConfig extends Config {
     )
     public Appearance appearance = new Appearance();
 
-    @Expose
-    @Category(
-            name = "Tweaks",
-            desc = "Various modifications to chat messages"
-    )
-    public Tweaks tweaks = new Tweaks();
-
     public static class Alignment {
         @Expose
         @ConfigOption(
@@ -68,48 +61,6 @@ public class ChatboxConfig extends Config {
                 values = { "No Shadow", "Shadow", "Full Shadow" }
         )
         public int tabTextShadow = 0;
-    }
-
-    public static class Tweaks {
-        @Expose
-        @ConfigOption(
-                name = "Compact Chat",
-                desc = "Stacks duplicate chat messages, removing the old duplicate"
-        )
-        @ConfigEditorBoolean
-        public boolean compactChat = false;
-
-        @Expose
-        @ConfigOption(
-                name = "Compact Chat Count",
-                desc = "Shows the number of duplicate messages removed by compact chat"
-        )
-        @ConfigEditorBoolean
-        public boolean compactChatCount = true;
-
-        @Expose
-        @ConfigOption(
-                name = "Fix Centered Text",
-                desc = "Fixes text which should be centered on Hypixel, but isn't because of the chat size"
-        )
-        @ConfigEditorBoolean
-        public boolean fixCenteredText = true;
-
-        @Expose
-        @ConfigOption(
-                name = "Smart Dividers",
-                desc = "Makes chat dividers (eg. -------) fit within the chat box properly"
-        )
-        @ConfigEditorBoolean
-        public boolean smartDividers = true;
-
-        @Expose
-        @ConfigOption(
-                name = "Connect Dividers",
-                desc = "Removes the gap between chat dividers (-------)"
-        )
-        @ConfigEditorBoolean
-        public boolean connectedDividers = false;
     }
 
 }

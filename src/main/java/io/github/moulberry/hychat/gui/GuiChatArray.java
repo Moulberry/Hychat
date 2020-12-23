@@ -66,6 +66,7 @@ public class GuiChatArray extends Gui {
         int rgb = argb & 0xffffff;
         int maxOpacity = (argb >> 24) & 0xFF;
         int drawnLines = 0;
+        boolean lastEmpty = false;
 
         for (int lineIndex = 0; lineIndex < chatLineCount+50; ++lineIndex) {
             if(drawnLines >= chatLineCount) {
@@ -95,9 +96,18 @@ public class GuiChatArray extends Gui {
                         String cleanS = StringUtils.cleanColour(s);
                         boolean centerText = false;
 
+                        if(cleanS.trim().length() == 0) {
+                            if(lastEmpty && HyChat.getInstance().getChatManager().getConfig().tweaks.stackEmptyLines) {
+                                continue;
+                            }
+                            lastEmpty = true;
+                        } else {
+                            lastEmpty = false;
+                        }
+
                         //s = EnumChatFormatting.GRAY + "(" + chatline.getUpdatedCounter() + ")" + s;
 
-                        if(chatBox.getConfig().tweaks.connectedDividers && chatline.isDivider()) {
+                        if(HyChat.getInstance().getChatManager().getConfig().tweaks.connectedDividers && chatline.isDivider()) {
                             char last = cleanS.charAt(cleanS.length()-1);
                             if(last == '-') {
                                 s = s.replaceAll("\\u00A7[0-9a-f]", "$0\u00A7m");
@@ -120,7 +130,7 @@ public class GuiChatArray extends Gui {
                             }
                         }
 
-                        if(chatBox.getConfig().tweaks.fixCenteredText) {
+                        if(HyChat.getInstance().getChatManager().getConfig().tweaks.fixCenteredText) {
                             boolean bold = false;
                             int spaceCharLen = Minecraft.getMinecraft().fontRendererObj.getCharWidth(' ');
                             int spaceLen = 0;
@@ -155,7 +165,7 @@ public class GuiChatArray extends Gui {
                             }
                         }
 
-                        if(chatBox.getConfig().tweaks.smartDividers && chatline.isDivider()) {
+                        if(HyChat.getInstance().getChatManager().getConfig().tweaks.smartDividers && chatline.isDivider()) {
                             if(lineIndex + scrollPos + 1 < chatLinesWrapped.size()) {
                                 ExtendedChatLine next =  chatLinesWrapped.get(lineIndex + scrollPos + 1);
                                 if(next.isDivider()) {
@@ -384,7 +394,7 @@ public class GuiChatArray extends Gui {
                     ExtendedChatLine chatline = chatLinesWrapped.get(lineIndex + scrollPos);
 
                     if (chatline != null) {
-                        if(chatBox.getConfig().tweaks.smartDividers && chatline.isDivider()) {
+                        if(HyChat.getInstance().getChatManager().getConfig().tweaks.smartDividers && chatline.isDivider()) {
                             if (lineIndex + scrollPos + 1 < chatLinesWrapped.size()) {
                                 ExtendedChatLine next = chatLinesWrapped.get(lineIndex + scrollPos + 1);
                                 if (next.isDivider()) {

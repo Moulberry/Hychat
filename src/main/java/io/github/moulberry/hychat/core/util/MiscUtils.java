@@ -35,9 +35,8 @@ public class MiscUtils {
     }
 
     public static void copyToClipboard(BufferedImage bufferedImage) {
+        TransferableImage trans = new TransferableImage(bufferedImage);
         try {
-            TransferableImage trans = new TransferableImage(bufferedImage);
-
             int width = bufferedImage.getWidth();
             int height = bufferedImage.getHeight();
 
@@ -179,7 +178,13 @@ public class MiscUtils {
             } catch(Exception e) {
                 e.printStackTrace();
             }
-        } catch(Exception ignored) { ignored.printStackTrace(); }
+        } catch(Exception e) {
+            try {
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(trans, null);
+            } catch(Exception e2) {
+                e2.printStackTrace();
+            }
+        }
     }
 
     private static class SimpleTransferable implements Transferable {

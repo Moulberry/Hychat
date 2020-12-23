@@ -2,14 +2,13 @@ package io.github.moulberry.hychat.chat;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import com.google.gson.annotations.Expose;
-import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.Resources;
+import io.github.moulberry.hychat.config.chatbox.GeneralConfig;
 import io.github.moulberry.hychat.core.util.RenderUtils;
 import io.github.moulberry.hychat.core.util.StringUtils;
 import io.github.moulberry.hychat.gui.GuiChatBox;
-import io.github.moulberry.hychat.gui.GuiEditChatBox;
+import io.github.moulberry.hychat.gui.GuiEditConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
@@ -33,8 +32,10 @@ public class ChatManager {
 
     @Expose private GuiChatBox primaryChatBox;
     @Expose private List<GuiChatBox> extraChatBoxes = new ArrayList<>();
+    @Expose private final GeneralConfig config = new GeneralConfig();
+
     private GuiChatBox focusedChat = null;
-    private GuiEditChatBox editor = null;
+    private GuiEditConfig editor = null;
     private final HashSet<Integer> unviewedMessages = new HashSet<>();
 
     private static final Gson gson = new GsonBuilder()
@@ -54,11 +55,6 @@ public class ChatManager {
                 .withIgnore("{RESET} (?:{ANY_COLOUR}>){3}{RESET} {HYPIXEL_NAME}{WHITE} {GOLD}[a-zA-Z]+ into the lobby!{RESET} (?:{ANY_COLOUR}<){3}{RESET}")
                 .withIgnore("{ANY_COLOUR_OPT}{MC_NAME} {RESET}{WHITE}found a .+ {RESET}{AQUA}Mystery Box{RESET}{WHITE}!{RESET}")
                 .withIgnore("{AQUA}\\[Mystery Box\\] {ANY_COLOUR}+{MC_NAME} {WHITE}found a .+"));
-                //.withIgnore("(.*){RESET} (?:{ANY_COLOUR_REGEX}>){3}{RESET} {HYPIXEL_NAME}{WHITE} " +
-                //        "{GOLD}sled into the lobby!{RESET} (?:{ANY_COLOUR_REGEX}>){RESET}"));
-                //§bMerryLapire §r§ffound a §r§e✰✰✰✰✰ §r§bMystery Box§r§f!§r
-        //§b[Mystery Box] §r§b§f§bAlftricker09 §ffound a §5Epic Secret Service Gadget§f!§r
-        //§r §b>§c>§a>§r §r§6[MVP§e++§6] Thereself§f §6sled into the lobby!§r §a<§c<§b<§r
         tabs.add(new ChatTab("Party")
                 .withMatches(PARTY)
                 .withMessagePrefix("/pc "));
@@ -75,7 +71,7 @@ public class ChatManager {
     }
 
     public void openEditor(GuiChatBox chatBox) {
-        editor = new GuiEditChatBox(chatBox.getConfig());
+        editor = new GuiEditConfig(chatBox.getConfig());
     }
 
     public void saveTo(File file) {
@@ -230,6 +226,10 @@ public class ChatManager {
         for(GuiChatBox chatBox : extraChatBoxes) {
             chatBox.deleteChatLine(lineId);
         }
+    }
+
+    public GeneralConfig getConfig() {
+        return config;
     }
 
     private static final Pattern messagePattern = Pattern.compile(ChatRegexes.substitute(

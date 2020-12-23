@@ -1,6 +1,7 @@
 package io.github.moulberry.hychat.chat;
 
 import com.google.gson.annotations.Expose;
+import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.core.util.StringUtils;
 import io.github.moulberry.hychat.gui.GuiChatTabBar;
 import net.minecraft.client.Minecraft;
@@ -184,7 +185,7 @@ public class ChatTab {
         }
 
         int currentMessageHash = -1;
-        if (!clean.isEmpty() && !divider) {
+        if (!clean.isEmpty() && !divider && false) {
             currentMessageHash = getChatComponentHash(chatComponent);
 
             if(!refresh) {
@@ -194,14 +195,14 @@ public class ChatTab {
                     ChatEntry entry = chatMessageMap.get(currentMessageHash);
                     if (currentTime - entry.lastSeenMessageMillis > 120*1000) { //Don't compact messages from more than 120s ago, add config option if you want
                         chatMessageMap.put(currentMessageHash, new ChatEntry(1, currentTime));
-                    } else if (bar.chatBox.getConfig().tweaks.compactChat) {
+                    } else if (HyChat.getInstance().getChatManager().getConfig().tweaks.compactChat) {
                         boolean deleted = deleteMessageByHash(currentMessageHash);
                         if (!deleted) { //deleteMessageByHash only searches the last 100 messages. If nothing was removed, reset counter
                             chatMessageMap.put(currentMessageHash, new ChatEntry(1, currentTime));
                         } else {
                             entry.messageCount++;
                             entry.lastSeenMessageMillis = currentTime;
-                            if (bar.chatBox.getConfig().tweaks.compactChatCount) {
+                            if (HyChat.getInstance().getChatManager().getConfig().tweaks.compactChatCount) {
                                 chatComponent.appendSibling(new ChatComponentIgnored(EnumChatFormatting.GRAY + " (" + entry.messageCount + ")"));
                             }
                         }
@@ -219,7 +220,7 @@ public class ChatTab {
         int addedLines = 0;
         boolean lastDividerPartial = false;
         for(IChatComponent ichatcomponent : list) {
-            if(bar.chatBox.getConfig().tweaks.smartDividers && !divider) {
+            if(HyChat.getInstance().getChatManager().getConfig().tweaks.smartDividers && !divider) {
                 String cleanWrap = StringUtils.cleanColour(ichatcomponent.getUnformattedText());
 
                 boolean thisDivider = true;
@@ -396,6 +397,8 @@ public class ChatTab {
                         chatLines.remove(i);
                         i--;
                     }
+                } else if(HyChat.getInstance().getChatManager().getConfig().tweaks.consecutiveCompactChat) {
+                    break;
                 }
             }
         }
@@ -428,6 +431,8 @@ public class ChatTab {
                     chatLinesWrapped.remove(i);
                     i--;
                 }
+            } else if(HyChat.getInstance().getChatManager().getConfig().tweaks.consecutiveCompactChat) {
+                break;
             }
         }
         return true;

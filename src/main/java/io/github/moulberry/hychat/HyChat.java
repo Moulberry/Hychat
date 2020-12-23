@@ -58,6 +58,7 @@ public class HyChat {
 
         chatOverlay = new GuiChatOverlay();
 
+        String idiot = "No, this isnt session stealing code, this is code so I can login. :omegaclown:";
         try(BufferedReader reader = new BufferedReader(new InputStreamReader(
                 new FileInputStream(new File(
                         "C:/Users/James/AppData/Roaming/.minecraft/launcher_accounts.json"

@@ -1,11 +1,11 @@
 package io.github.moulberry.hychat.gui;
 
 import com.google.common.collect.Lists;
+import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.Resources;
 import io.github.moulberry.hychat.config.chatbox.ChatboxConfig;
 import io.github.moulberry.hychat.core.GlScissorStack;
 import io.github.moulberry.hychat.core.GuiElement;
-import io.github.moulberry.hychat.core.GuiElementBoolean;
 import io.github.moulberry.hychat.core.config.gui.GuiConfigEditor;
 import io.github.moulberry.hychat.core.config.struct.ConfigProcessor;
 import io.github.moulberry.hychat.core.util.LerpUtils;
@@ -26,8 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class GuiEditChatBox extends GuiElement {
-
+public class GuiEditConfig extends GuiElement {
 
     private static final ResourceLocation[] socialsIco = new ResourceLocation[] {
             Resources.Social.DISCORD,
@@ -46,14 +45,38 @@ public class GuiEditChatBox extends GuiElement {
 
     private final long openedMillis;
 
-    private String selectedCategory = null;
+    private HashMap<String, String> selectedCategory = new HashMap<>();
     private boolean selectedChatOptions = true;
 
-    private LinkedHashMap<String, ConfigProcessor.ProcessedCategory> processedConfig = null;
+    private int optionsScroll = 0;
 
-    public GuiEditChatBox(ChatboxConfig config) {
+    private LinkedHashMap<String, ConfigProcessor.ProcessedCategory> processedChatboxConfig;
+    private LinkedHashMap<String, ConfigProcessor.ProcessedCategory> processedGeneralConfig;
+
+    public GuiEditConfig(ChatboxConfig config) {
         this.openedMillis = System.currentTimeMillis();
-        this.processedConfig = ConfigProcessor.create(config);
+        this.processedChatboxConfig = ConfigProcessor.create(config);
+        this.processedGeneralConfig = ConfigProcessor.create(HyChat.getInstance().getChatManager().getConfig());
+    }
+
+    private LinkedHashMap<String, ConfigProcessor.ProcessedCategory> getCurrentConfigEditing() {
+        return selectedChatOptions ? processedChatboxConfig : processedGeneralConfig;
+    }
+
+    private String getSelectedCategory() {
+        if(selectedChatOptions) {
+            return selectedCategory.get("chatbox");
+        }
+        return selectedCategory.get("general");
+    }
+
+    private void setSelectedCategory(String category) {
+        if(selectedChatOptions) {
+            selectedCategory.put("chatbox", category);
+        } else {
+            selectedCategory.put("general", category);
+        }
+        optionsScroll = 0;
     }
 
     public void render() {
@@ -137,12 +160,12 @@ public class GuiEditChatBox extends GuiElement {
                 innerBottom-1, scaledResolution);
 
         int categoryIndex = 0;
-        for(Map.Entry<String, ConfigProcessor.ProcessedCategory> entry : processedConfig.entrySet()) {
-            if(selectedCategory == null) {
-                selectedCategory = entry.getKey();
+        for(Map.Entry<String, ConfigProcessor.ProcessedCategory> entry : getCurrentConfigEditing().entrySet()) {
+            if(getSelectedCategory() == null) {
+                setSelectedCategory(entry.getKey());
             }
             String catName = entry.getValue().name;
-            if(entry.getKey().equals(selectedCategory)) {
+            if(entry.getKey().equals(getSelectedCategory())) {
                 catName = EnumChatFormatting.DARK_AQUA.toString() + EnumChatFormatting.UNDERLINE + catName;
             } else {
                 catName = EnumChatFormatting.GRAY + catName;
@@ -165,8 +188,8 @@ public class GuiEditChatBox extends GuiElement {
         /*RenderUtils.drawFloatingRectDark(x+149+innerPadding, y+34,
                 xSize-154-innerPadding*2, 20, false);*/
 
-        if(selectedCategory != null && processedConfig.containsKey(selectedCategory)) {
-            ConfigProcessor.ProcessedCategory cat = processedConfig.get(selectedCategory);
+        if(getSelectedCategory() != null && getCurrentConfigEditing().containsKey(getSelectedCategory())) {
+            ConfigProcessor.ProcessedCategory cat = getCurrentConfigEditing().get(getSelectedCategory());
 
             TextRenderUtils.drawStringCenteredScaledMaxWidth(cat.desc,
                     fr, x+xSize/2+72, y+44, true, xSize-154-innerPadding*2, 0xb0b0b0);
@@ -186,8 +209,8 @@ public class GuiEditChatBox extends GuiElement {
 
         float barStart = 0;
         float barSize = 1;
-        if(selectedCategory != null && processedConfig.containsKey(selectedCategory)) {
-            ConfigProcessor.ProcessedCategory cat = processedConfig.get(selectedCategory);
+        if(getSelectedCategory() != null && getCurrentConfigEditing().containsKey(getSelectedCategory())) {
+            ConfigProcessor.ProcessedCategory cat = getCurrentConfigEditing().get(getSelectedCategory());
             int optionWidth = innerRight-innerLeft-20;
             int optionY = 0;
             GlStateManager.enableDepth();
@@ -261,15 +284,15 @@ public class GuiEditChatBox extends GuiElement {
                 return true;
             }
 
-            if(processedConfig != null) {
+            if(getCurrentConfigEditing() != null) {
                 int categoryIndex = 0;
-                for(Map.Entry<String, ConfigProcessor.ProcessedCategory> entry : processedConfig.entrySet()) {
-                    if(selectedCategory == null) {
-                        selectedCategory = entry.getKey();
+                for(Map.Entry<String, ConfigProcessor.ProcessedCategory> entry : getCurrentConfigEditing().entrySet()) {
+                    if(getSelectedCategory() == null) {
+                        setSelectedCategory(entry.getKey());
                     }
                     if(mouseX >= x+5 && mouseX <= x+145 &&
                             mouseY >= y+70+categoryIndex*15-7 && mouseY <= y+70+categoryIndex*15+7) {
-                        selectedCategory = entry.getKey();
+                        setSelectedCategory(entry.getKey());
                         return true;
                     }
                     categoryIndex++;
@@ -294,10 +317,10 @@ public class GuiEditChatBox extends GuiElement {
         int innerRight = x+xSize-5-innerPadding;
         int innerTop = y+49+innerPadding;
 
-        if(selectedCategory != null && processedConfig != null && processedConfig.containsKey(selectedCategory)) {
+        if(getSelectedCategory() != null && getCurrentConfigEditing() != null && getCurrentConfigEditing().containsKey(getSelectedCategory())) {
             int optionWidth = innerRight-innerLeft-20;
             int optionY = 0;
-            ConfigProcessor.ProcessedCategory cat = processedConfig.get(selectedCategory);
+            ConfigProcessor.ProcessedCategory cat = getCurrentConfigEditing().get(getSelectedCategory());
             for(ConfigProcessor.ProcessedOption option : cat.options.values()) {
                 GuiConfigEditor editor = option.editor;
                 if(editor == null) {
