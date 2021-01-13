@@ -1,4 +1,4 @@
-package io.github.moulberry.hychat.core.util;
+package io.github.moulberry.hychat.core.util.lerp;
 
 public class LerpUtils {
 

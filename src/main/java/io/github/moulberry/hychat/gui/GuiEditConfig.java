@@ -3,14 +3,15 @@ package io.github.moulberry.hychat.gui;
 import com.google.common.collect.Lists;
 import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.Resources;
-import io.github.moulberry.hychat.config.chatbox.ChatboxConfig;
+import io.github.moulberry.hychat.config.ChatboxConfig;
 import io.github.moulberry.hychat.core.GlScissorStack;
 import io.github.moulberry.hychat.core.GuiElement;
-import io.github.moulberry.hychat.core.config.gui.GuiConfigEditor;
+import io.github.moulberry.hychat.core.config.gui.GuiOptionEditor;
 import io.github.moulberry.hychat.core.config.struct.ConfigProcessor;
-import io.github.moulberry.hychat.core.util.LerpUtils;
-import io.github.moulberry.hychat.core.util.RenderUtils;
-import io.github.moulberry.hychat.core.util.TextRenderUtils;
+import io.github.moulberry.hychat.core.util.lerp.LerpUtils;
+import io.github.moulberry.hychat.core.util.lerp.LerpingInteger;
+import io.github.moulberry.hychat.core.util.render.RenderUtils;
+import io.github.moulberry.hychat.core.util.render.TextRenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.*;
 import net.minecraft.client.renderer.GlStateManager;
@@ -48,7 +49,7 @@ public class GuiEditConfig extends GuiElement {
     private HashMap<String, String> selectedCategory = new HashMap<>();
     private boolean selectedChatOptions = true;
 
-    private int optionsScroll = 0;
+    private LerpingInteger optionsScroll = new LerpingInteger(0, 150);
 
     private LinkedHashMap<String, ConfigProcessor.ProcessedCategory> processedChatboxConfig;
     private LinkedHashMap<String, ConfigProcessor.ProcessedCategory> processedGeneralConfig;
@@ -76,10 +77,12 @@ public class GuiEditConfig extends GuiElement {
         } else {
             selectedCategory.put("general", category);
         }
-        optionsScroll = 0;
+        optionsScroll.setValue(0);
     }
 
     public void render() {
+        optionsScroll.tick();
+
         List<String> tooltipToDisplay = null;
 
         long currentTime = System.currentTimeMillis();
@@ -207,15 +210,14 @@ public class GuiEditConfig extends GuiElement {
 
         GlScissorStack.push(innerLeft+1, innerTop+1, innerRight-1, innerBottom-1, scaledResolution);
 
-        float barStart = 0;
         float barSize = 1;
+        int optionY = -optionsScroll.getValue();
         if(getSelectedCategory() != null && getCurrentConfigEditing().containsKey(getSelectedCategory())) {
             ConfigProcessor.ProcessedCategory cat = getCurrentConfigEditing().get(getSelectedCategory());
             int optionWidth = innerRight-innerLeft-20;
-            int optionY = 0;
             GlStateManager.enableDepth();
             for(ConfigProcessor.ProcessedOption option : cat.options.values()) {
-                GuiConfigEditor editor = option.editor;
+                GuiOptionEditor editor = option.editor;
                 if(editor == null) {
                     continue;
                 }
@@ -227,13 +229,17 @@ public class GuiEditConfig extends GuiElement {
             }
             GlStateManager.disableDepth();
             if(optionY > 0) {
-                barSize = LerpUtils.clampZeroOne((float)(innerBottom-innerTop-2)/optionY);
+                barSize = LerpUtils.clampZeroOne((float)(innerBottom-innerTop-2)/(optionY+5+optionsScroll.getValue()));
             }
         }
 
         GlScissorStack.pop(scaledResolution);
 
+        float barStart = optionsScroll.getValue() / (float)(optionY + optionsScroll.getValue());
         float barEnd = barStart+barSize;
+        if(barEnd > 1) {
+            barEnd = 1;
+        }
         int dist = innerBottom-innerTop-12;
         Gui.drawRect(innerRight-10, innerTop+5, innerRight-5, innerBottom-5, 0xff101010);
         Gui.drawRect(innerRight-9, innerTop+6+(int)(dist*barStart), innerRight-6, innerTop+6+(int)(dist*barEnd), 0xff303030);
@@ -272,14 +278,65 @@ public class GuiEditConfig extends GuiElement {
 
         int adjScaleFactor = Math.max(2, scaledResolution.getScaleFactor());
 
-        if(Mouse.getEventButtonState() && Mouse.getEventButton() == 0) {
+        int dWheel = Mouse.getDWheel();
+        if(dWheel != 0) {
+            if(dWheel < 0) {
+                dWheel = -1;
+            }
+            if(dWheel > 0) {
+                dWheel = 1;
+            }
+            boolean resetTimer = true;
+            int newTarget = optionsScroll.getTarget() - dWheel*20;
+            if(newTarget < 0) {
+                newTarget = 0;
+                resetTimer = false;
+            }
+
+            int innerPadding = 20/adjScaleFactor;
+            int innerTop = y+49+innerPadding;
+            int innerBottom = y+ySize-5-innerPadding;
+
+            float barSize = 1;
+            int optionY = -newTarget;
+            if(getSelectedCategory() != null && getCurrentConfigEditing() != null && getCurrentConfigEditing().containsKey(getSelectedCategory())) {
+                ConfigProcessor.ProcessedCategory cat = getCurrentConfigEditing().get(getSelectedCategory());
+                for(ConfigProcessor.ProcessedOption option : cat.options.values()) {
+                    GuiOptionEditor editor = option.editor;
+                    if(editor == null) {
+                        continue;
+                    }
+                    optionY += editor.getHeight() + 5;
+
+                    if(optionY > 0) {
+                        barSize = LerpUtils.clampZeroOne((float)(innerBottom-innerTop-2)/(optionY+5 + newTarget));
+                    }
+                }
+            }
+
+            int barMax = (int)Math.ceil((1-barSize)*optionY/barSize)+2;
+            if(newTarget > barMax) {
+                newTarget = barMax;
+                resetTimer = false;
+            }
+            if(resetTimer && optionsScroll.getTarget() != newTarget) {
+                optionsScroll.resetTimer();
+            }
+            optionsScroll.setTarget(newTarget);
+        } else if(Mouse.getEventButtonState() && Mouse.getEventButton() == 0) {
             int leftOffset = selectedChatOptions ? -1 : 1;
             if(mouseX >= x+5+leftOffset && mouseX <= x+75+leftOffset &&
                     mouseY >= y+30+leftOffset && mouseY <= y+55+leftOffset) {
+                if(!selectedChatOptions) {
+                    optionsScroll.setValue(0);
+                }
                 selectedChatOptions = true;
                 return true;
             } else if(mouseX >= x+75-leftOffset && mouseX <= x+144 &&
                     mouseY >= y+30-leftOffset && mouseY <= y+55-leftOffset) {
+                if(selectedChatOptions) {
+                    optionsScroll.setValue(0);
+                }
                 selectedChatOptions = false;
                 return true;
             }
@@ -316,22 +373,27 @@ public class GuiEditConfig extends GuiElement {
         int innerLeft = x+149+innerPadding;
         int innerRight = x+xSize-5-innerPadding;
         int innerTop = y+49+innerPadding;
+        int innerBottom = y+ySize-5-innerPadding;
 
-        if(getSelectedCategory() != null && getCurrentConfigEditing() != null && getCurrentConfigEditing().containsKey(getSelectedCategory())) {
-            int optionWidth = innerRight-innerLeft-20;
-            int optionY = 0;
-            ConfigProcessor.ProcessedCategory cat = getCurrentConfigEditing().get(getSelectedCategory());
-            for(ConfigProcessor.ProcessedOption option : cat.options.values()) {
-                GuiConfigEditor editor = option.editor;
-                if(editor == null) {
-                    continue;
+        if(mouseX > innerLeft && mouseX < innerRight &&
+                mouseY > innerTop && mouseY < innerBottom) {
+            int optionY = -optionsScroll.getValue();
+            if(getSelectedCategory() != null && getCurrentConfigEditing() != null && getCurrentConfigEditing().containsKey(getSelectedCategory())) {
+                int optionWidth = innerRight-innerLeft-20;
+                ConfigProcessor.ProcessedCategory cat = getCurrentConfigEditing().get(getSelectedCategory());
+                for(ConfigProcessor.ProcessedOption option : cat.options.values()) {
+                    GuiOptionEditor editor = option.editor;
+                    if(editor == null) {
+                        continue;
+                    }
+                    if(editor.mouseInput(innerLeft+5, innerTop+5+optionY, optionWidth, mouseX, mouseY)) {
+                        return true;
+                    }
+                    optionY += editor.getHeight() + 5;
                 }
-                if(editor.mouseInput(innerLeft+5, innerTop+5+optionY, optionWidth, mouseX, mouseY)) {
-                    return true;
-                }
-                optionY += editor.getHeight() + 5;
             }
         }
+
 
         return true;
     }

@@ -2,16 +2,17 @@ package io.github.moulberry.hychat.event;
 
 import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.core.util.MiscUtils;
+import io.github.moulberry.hychat.util.TextProcessing;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.profiler.Profiler;
+import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.IChatComponent;
 import net.minecraft.util.MouseHelper;
-import net.minecraftforge.client.event.GuiOpenEvent;
-import net.minecraftforge.client.event.GuiScreenEvent;
-import net.minecraftforge.client.event.MouseEvent;
-import net.minecraftforge.client.event.RenderGameOverlayEvent;
+import net.minecraftforge.client.event.*;
+import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -19,11 +20,20 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 
+import java.io.PrintStream;
+
 public class EventListener {
 
     @SubscribeEvent
     public void onWorldLoad(WorldEvent.Unload event) {
         HyChat.getInstance().getChatManager().saveTo(HyChat.getInstance().getChatManagerConfig());
+    }
+
+    @SubscribeEvent
+    public void onTick(TickEvent.ClientTickEvent event) {
+        if(event.phase == TickEvent.Phase.START) {
+            HyChat.getInstance().getChatManager().tickChatBoxes();
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGH)
@@ -36,6 +46,16 @@ public class EventListener {
 
         event.setCanceled(true);
         HyChat.getInstance().getChatManager().renderChatBoxes(mouseX, mouseY, event.partialTicks);
+
+        if(Minecraft.getMinecraft().mcProfiler.getNameOfLastSection().endsWith("chat")) {
+            Minecraft.getMinecraft().mcProfiler.endSection();
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public void onReceivedChat(ClientChatReceivedEvent event) {
+        if(event.type != 0) return;
+        event.message = TextProcessing.cleanChatComponent(event.message);
     }
 
     @SubscribeEvent

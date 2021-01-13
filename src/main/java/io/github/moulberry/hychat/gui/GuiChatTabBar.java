@@ -6,7 +6,7 @@ import io.github.moulberry.hychat.Resources;
 import io.github.moulberry.hychat.chat.ChatTab;
 import io.github.moulberry.hychat.chat.ExtendedChatLine;
 import io.github.moulberry.hychat.core.ChromaColour;
-import io.github.moulberry.hychat.core.util.RenderUtils;
+import io.github.moulberry.hychat.core.util.render.RenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;

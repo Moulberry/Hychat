@@ -1,22 +1,22 @@
 package io.github.moulberry.hychat.core.config.gui;
 
 import io.github.moulberry.hychat.core.config.struct.ConfigProcessor;
-import io.github.moulberry.hychat.core.util.RenderUtils;
-import io.github.moulberry.hychat.core.util.TextRenderUtils;
+import io.github.moulberry.hychat.core.util.render.RenderUtils;
+import io.github.moulberry.hychat.core.util.render.TextRenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
 import org.lwjgl.input.Mouse;
 
-public class GuiConfigEditorDropdown extends GuiConfigEditor {
+public class GuiOptionEditorDropdown extends GuiOptionEditor {
 
     private final String[] values;
     private final boolean useOrdinal;
     private int selected;
     private boolean open = false;
 
-    public GuiConfigEditorDropdown(ConfigProcessor.ProcessedOption option, String[] values, int selected, boolean useOrdinal) {
+    public GuiOptionEditorDropdown(ConfigProcessor.ProcessedOption option, String[] values, int selected, boolean useOrdinal) {
         super(option);
         this.values = values;
         this.selected = selected;

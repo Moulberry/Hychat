@@ -1,10 +1,8 @@
 package io.github.moulberry.hychat.core;
 
-import io.github.moulberry.hychat.core.util.RenderUtils;
-import io.github.moulberry.hychat.event.EventListener;
+import io.github.moulberry.hychat.core.util.render.RenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.shader.Framebuffer;
@@ -17,7 +15,6 @@ import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL30;
 
 public class BackgroundBlur {
@@ -131,6 +128,10 @@ public class BackgroundBlur {
             } catch(Exception e) { }
         }
         if(blurShaderHorz != null && blurShaderVert != null) {
+            if(blurShaderHorz.getShaderManager().getShaderUniform("Radius") == null) {
+                //Corrupted shader?
+                return;
+            }
             if(15 != lastBgBlurFactor) {
                 blurShaderHorz.getShaderManager().getShaderUniform("Radius").set((float)15);
                 blurShaderVert.getShaderManager().getShaderUniform("Radius").set((float)15);

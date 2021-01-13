@@ -1,19 +1,16 @@
 package io.github.moulberry.hychat.core.config.struct;
 
-import com.google.gson.JsonObject;
 import com.google.gson.annotations.Expose;
 import io.github.moulberry.hychat.core.config.Config;
 import io.github.moulberry.hychat.core.config.annotations.Category;
 import io.github.moulberry.hychat.core.config.annotations.ConfigEditorBoolean;
 import io.github.moulberry.hychat.core.config.annotations.ConfigEditorDropdown;
 import io.github.moulberry.hychat.core.config.annotations.ConfigOption;
-import io.github.moulberry.hychat.core.config.gui.GuiConfigEditor;
-import io.github.moulberry.hychat.core.config.gui.GuiConfigEditorBoolean;
-import io.github.moulberry.hychat.core.config.gui.GuiConfigEditorDropdown;
+import io.github.moulberry.hychat.core.config.gui.GuiOptionEditor;
+import io.github.moulberry.hychat.core.config.gui.GuiOptionEditorBoolean;
+import io.github.moulberry.hychat.core.config.gui.GuiOptionEditorDropdown;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 public class ConfigProcessor {
@@ -33,7 +30,7 @@ public class ConfigProcessor {
         public final String name;
         public final String desc;
         public final int subcategoryId;
-        public GuiConfigEditor editor;
+        public GuiOptionEditor editor;
 
         private final Field field;
         private final Object container;
@@ -105,22 +102,22 @@ public class ConfigProcessor {
                                 categoryObj
                         );
 
-                        GuiConfigEditor editor = null;
+                        GuiOptionEditor editor = null;
                         Class<?> optionType = optionField.getType();
                         if(optionType.isAssignableFrom(boolean.class) &&
                                 optionField.isAnnotationPresent(ConfigEditorBoolean.class)) {
-                            editor = new GuiConfigEditorBoolean(option);
+                            editor = new GuiOptionEditorBoolean(option);
                         }
                         if(optionType.isAssignableFrom(int.class)) {
                             if(optionField.isAnnotationPresent(ConfigEditorDropdown.class)) {
                                 ConfigEditorDropdown configEditorAnnotation = optionField.getAnnotation(ConfigEditorDropdown.class);
-                                editor = new GuiConfigEditorDropdown(option, configEditorAnnotation.values(), (int)option.get(), true);
+                                editor = new GuiOptionEditorDropdown(option, configEditorAnnotation.values(), (int)option.get(), true);
                             }
                         }
                         if(optionType.isAssignableFrom(String.class)) {
                             if(optionField.isAnnotationPresent(ConfigEditorDropdown.class)) {
                                 ConfigEditorDropdown configEditorAnnotation = optionField.getAnnotation(ConfigEditorDropdown.class);
-                                editor = new GuiConfigEditorDropdown(option, configEditorAnnotation.values(), 0,false);
+                                editor = new GuiOptionEditorDropdown(option, configEditorAnnotation.values(), 0,false);
                             }
                         }
                         if(editor == null) {

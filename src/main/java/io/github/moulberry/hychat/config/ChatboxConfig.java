@@ -1,4 +1,4 @@
-package io.github.moulberry.hychat.config.chatbox;
+package io.github.moulberry.hychat.config;
 
 import com.google.gson.annotations.Expose;
 import io.github.moulberry.hychat.core.config.Config;

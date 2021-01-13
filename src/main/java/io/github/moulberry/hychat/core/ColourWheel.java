@@ -1,7 +1,7 @@
 package io.github.moulberry.hychat.core;
 
-import io.github.moulberry.hychat.core.util.RenderUtils;
-import io.github.moulberry.hychat.core.util.TextRenderUtils;
+import io.github.moulberry.hychat.core.util.render.RenderUtils;
+import io.github.moulberry.hychat.core.util.render.TextRenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;

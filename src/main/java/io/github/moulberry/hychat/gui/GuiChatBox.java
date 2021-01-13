@@ -1,9 +1,8 @@
 package io.github.moulberry.hychat.gui;
 
 import com.google.gson.annotations.Expose;
-import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.Resources;
-import io.github.moulberry.hychat.config.chatbox.ChatboxConfig;
+import io.github.moulberry.hychat.config.ChatboxConfig;
 import io.github.moulberry.hychat.core.ChromaColour;
 import io.github.moulberry.hychat.mixins.GuiScreenAccessor;
 import io.github.moulberry.hychat.chat.ChatTab;
@@ -43,6 +42,8 @@ public class GuiChatBox {
     @Expose private boolean locked = false;
 
     @Expose private final ChatboxConfig config = new ChatboxConfig();
+
+    private boolean shouldRefreshChat = false;
 
     private int grabbedSide = -1;
     private int grabbedMouseX = -1;
@@ -126,8 +127,8 @@ public class GuiChatBox {
         this.scrollPos += scroll;
         int i = getSelectedTab().getChatLines().size();
 
-        if (this.scrollPos > i - getChatHeight(scaledResolution)/9) {
-            this.scrollPos = i - getChatHeight(scaledResolution)/9;
+        if (this.scrollPos > i - getChatHeight(scaledResolution)/getChatScale()/9) {
+            this.scrollPos = i - (int)Math.ceil(getChatHeight(scaledResolution)/getChatScale()/9);
         }
 
         if (this.scrollPos <= 0) {
@@ -149,6 +150,10 @@ public class GuiChatBox {
 
     public int getChatHeight(ScaledResolution scaledResolution) {
         return Math.min(scaledResolution.getScaledHeight()-32, height);
+    }
+
+    public float getChatScale() {
+        return Minecraft.getMinecraft().gameSettings.chatScale;
     }
 
     public int getX(ScaledResolution scaledResolution) {
@@ -181,8 +186,11 @@ public class GuiChatBox {
         return realY;
     }
 
-    public float getChatScale() {
-        return Minecraft.getMinecraft().gameSettings.chatScale;
+    public void tick() {
+        if(shouldRefreshChat) {
+            shouldRefreshChat = false;
+            refreshChat();
+        }
     }
 
     public void render(int mouseX, int mouseY, float partialTicks) {
@@ -439,7 +447,7 @@ public class GuiChatBox {
                         grabbedMouseX += 70 - this.width;
                         this.width = 70;
                     }
-                    refreshChat();
+                    shouldRefreshChat = true;
                 } else if((grabbedSide & LEFT) != 0) {
                     int delta = mouseX - grabbedMouseX;
                     this.width -= delta;
@@ -450,7 +458,7 @@ public class GuiChatBox {
                     width = getChatWidth(scaledResolution);
                     moveX(delta, width, scaledResolution.getScaledWidth());
                     grabbedMouseX += delta;
-                    refreshChat();
+                    shouldRefreshChat = true;
                 }
                 if((grabbedSide & DOWN) != 0) {
                     int delta = mouseY - grabbedMouseY;
@@ -462,7 +470,7 @@ public class GuiChatBox {
                     height = getChatHeight(scaledResolution);
                     moveY(delta, height, scaledResolution.getScaledHeight());
                     grabbedMouseY += delta;
-                    refreshChat();
+                    shouldRefreshChat = true;
                 } else if((grabbedSide & UP) != 0) {
                     this.height -= mouseY - grabbedMouseY;
                     grabbedMouseY = mouseY;
@@ -470,7 +478,7 @@ public class GuiChatBox {
                         grabbedMouseY -= 50 - this.height;
                         this.height = 50;
                     }
-                    refreshChat();
+                    shouldRefreshChat = true;
                 }
             }
 

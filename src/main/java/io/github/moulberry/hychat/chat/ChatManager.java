@@ -4,9 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
 import io.github.moulberry.hychat.Resources;
-import io.github.moulberry.hychat.config.chatbox.GeneralConfig;
-import io.github.moulberry.hychat.core.util.RenderUtils;
+import io.github.moulberry.hychat.config.GeneralConfig;
+import io.github.moulberry.hychat.core.util.render.RenderUtils;
 import io.github.moulberry.hychat.core.util.StringUtils;
+import io.github.moulberry.hychat.core.util.render.TextRenderUtils;
 import io.github.moulberry.hychat.gui.GuiChatBox;
 import io.github.moulberry.hychat.gui.GuiEditConfig;
 import net.minecraft.client.Minecraft;
@@ -30,6 +31,11 @@ import static io.github.moulberry.hychat.chat.ChatRegexes.*;
 
 public class ChatManager {
 
+    private static final Gson gson = new GsonBuilder()
+            .setPrettyPrinting()
+            .excludeFieldsWithoutExposeAnnotation()
+            .create();
+
     @Expose private GuiChatBox primaryChatBox;
     @Expose private List<GuiChatBox> extraChatBoxes = new ArrayList<>();
     @Expose private final GeneralConfig config = new GeneralConfig();
@@ -38,10 +44,7 @@ public class ChatManager {
     private GuiEditConfig editor = null;
     private final HashSet<Integer> unviewedMessages = new HashSet<>();
 
-    private static final Gson gson = new GsonBuilder()
-            .setPrettyPrinting()
-            .excludeFieldsWithoutExposeAnnotation()
-            .create();
+    private HashMap<String, Conversation> conversations = new HashMap<>();
 
     public ChatManager() {
         resetPrimaryChatBox();
@@ -125,6 +128,13 @@ public class ChatManager {
         return primaryChatBox;
     }
 
+    public void tickChatBoxes() {
+        primaryChatBox.tick();
+        for(GuiChatBox chatBox : extraChatBoxes) {
+            chatBox.tick();
+        }
+    }
+
     public void renderChatBoxes(int mouseX, int mouseY, float partialTicks) {
         if(!(Minecraft.getMinecraft().currentScreen instanceof GuiChat)) {
             editor = null;
@@ -165,6 +175,15 @@ public class ChatManager {
         Minecraft.getMinecraft().getTextureManager().bindTexture(Resources.Overlay.HAMBURGER);
         GlStateManager.color(1, 1, 1, 1);
         RenderUtils.drawTexturedRect(scaledResolution.getScaledWidth()-16, scaledResolution.getScaledHeight()-30, 14, 14);
+
+        Minecraft.getMinecraft().getTextureManager().bindTexture(Resources.Overlay.NOTIF);
+        GlStateManager.color(1, 1, 1, 1);
+        RenderUtils.drawTexturedRect(scaledResolution.getScaledWidth()-8, scaledResolution.getScaledHeight()-30, 6, 6);
+
+        String num = ""+conversations.size();
+        int len = Minecraft.getMinecraft().fontRendererObj.getStringWidth(num);
+        TextRenderUtils.drawStringScaled(num, Minecraft.getMinecraft().fontRendererObj,
+                scaledResolution.getScaledWidth()-5f-len/4f, scaledResolution.getScaledHeight()-29, false, 0xffffffff, 0.5f);
 
         GlStateManager.color(1, 1, 1, 1);
         GlStateManager.enableBlend();
@@ -240,20 +259,28 @@ public class ChatManager {
         Matcher matcher = messagePattern.matcher(chatComponent.getFormattedText());
         if(matcher.matches()) {
             String hypixelName = matcher.group(1);
-            String playerName;
-            if(hypixelName.contains(" ")) {
-                playerName = StringUtils.cleanColour(hypixelName.split(" ")[1]);
-            } else {
-                playerName = StringUtils.cleanColour(hypixelName);
+            String[] split = hypixelName.split(" ");
+            String playerName = StringUtils.cleanColour(split[split.length-1]);
+
+            if(!conversations.containsKey(playerName)) {
+                conversations.put(playerName, new Conversation(playerName, hypixelName));
             }
-            if(primaryChatBox.tabBar.getDynamicTabIndex(playerName.hashCode()) == -1) {
-                primaryChatBox.tabBar.addDynamicTab(playerName.hashCode(),
+            Conversation conversation = conversations.get(playerName);
+            conversation.setRecipientFancy(hypixelName);
+
+            if(StringUtils.cleanColour(chatComponent.getUnformattedText()).startsWith("To")) {
+                conversation.getTo().add(chatComponent);
+            } else {
+                conversation.getFrom().add(chatComponent);
+            }
+            //if(primaryChatBox.tabBar.getDynamicTabIndex(playerName.hashCode()) == -1) {
+                /*primaryChatBox.tabBar.addDynamicTab(playerName.hashCode(),
                         new ChatTab(playerName)
                                 .withMatch("{LIGHT_PURPLE}To {ANY_COLOUR_OPT}"+Pattern.quote(hypixelName)+"{RESET}{GRAY}: .+{RESET}")
                                 .withMatch("{LIGHT_PURPLE}From {ANY_COLOUR_OPT}"+Pattern.quote(hypixelName)+"{RESET}{GRAY}: .+{RESET}")
                                 .withMessagePrefix("/msg "+playerName+" ")
-                );
-            }
+                );*/
+            //}
         }
 
         int uniqueId = UUID.randomUUID().hashCode();

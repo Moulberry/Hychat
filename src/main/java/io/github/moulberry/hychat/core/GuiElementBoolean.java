@@ -1,8 +1,8 @@
 package io.github.moulberry.hychat.core;
 
 import io.github.moulberry.hychat.Resources;
-import io.github.moulberry.hychat.core.util.LerpUtils;
-import io.github.moulberry.hychat.core.util.RenderUtils;
+import io.github.moulberry.hychat.core.util.lerp.LerpUtils;
+import io.github.moulberry.hychat.core.util.render.RenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;

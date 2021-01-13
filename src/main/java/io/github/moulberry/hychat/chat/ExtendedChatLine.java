@@ -7,6 +7,7 @@ public class ExtendedChatLine extends ChatLine {
 
     private IChatComponent fullLine;
     private boolean divider = false;
+    private boolean centered = false;
     private int uniqueId;
 
     public ExtendedChatLine(int updateCounter, IChatComponent chatComponent, IChatComponent fullLine, int lineId) {
@@ -21,6 +22,15 @@ public class ExtendedChatLine extends ChatLine {
 
     public boolean isDivider() {
         return divider;
+    }
+
+    public boolean isCentered() {
+        return centered;
+    }
+
+    public ExtendedChatLine setCentered(boolean centered) {
+        this.centered = centered;
+        return this;
     }
 
     public ExtendedChatLine setUniqueId(int uniqueId) {

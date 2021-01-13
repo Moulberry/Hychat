@@ -1,4 +1,4 @@
-package io.github.moulberry.hychat.core.util;
+package io.github.moulberry.hychat.core.util.render;
 
 import io.github.moulberry.hychat.core.BackgroundBlur;
 import net.minecraft.client.Minecraft;

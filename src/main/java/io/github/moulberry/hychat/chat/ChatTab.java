@@ -33,7 +33,6 @@ public class ChatTab {
     private List<ExtendedChatLine> chatLines = new ArrayList<>();
     private List<ExtendedChatLine> chatLinesWrapped = new ArrayList<>();
 
-
     //Compact chat stuff
     private long lastCleanMillis = 0;
     private final HashMap<Integer, ChatEntry> chatMessageMap = new HashMap<>();
@@ -185,7 +184,7 @@ public class ChatTab {
         }
 
         int currentMessageHash = -1;
-        if (!clean.isEmpty() && !divider && false) {
+        if (!clean.isEmpty() && !divider) {
             currentMessageHash = getChatComponentHash(chatComponent);
 
             if(!refresh) {
@@ -193,11 +192,11 @@ public class ChatTab {
                     chatMessageMap.put(currentMessageHash, new ChatEntry(1, currentTime));
                 } else {
                     ChatEntry entry = chatMessageMap.get(currentMessageHash);
-                    if (currentTime - entry.lastSeenMessageMillis > 120*1000) { //Don't compact messages from more than 120s ago, add config option if you want
+                    if (currentTime - entry.lastSeenMessageMillis > 120*1000) { //Don't compact messages from more than (x=120s) ago, add config option if you want
                         chatMessageMap.put(currentMessageHash, new ChatEntry(1, currentTime));
                     } else if (HyChat.getInstance().getChatManager().getConfig().tweaks.compactChat) {
                         boolean deleted = deleteMessageByHash(currentMessageHash);
-                        if (!deleted) { //deleteMessageByHash only searches the last 100 messages. If nothing was removed, reset counter
+                        if (!deleted) { //deleteMessageByHash only searches the last (x=100) messages. If nothing was removed, reset counter
                             chatMessageMap.put(currentMessageHash, new ChatEntry(1, currentTime));
                         } else {
                             entry.messageCount++;
@@ -395,8 +394,8 @@ public class ChatTab {
                     if(isDivider(StringUtils.cleanColour(nextLine.getChatComponent().getUnformattedText())) &&
                             Math.abs(line.getUpdatedCounter() - nextLine.getUpdatedCounter()) <= 2) {
                         chatLines.remove(i);
-                        i--;
                     }
+                    i--;
                 } else if(HyChat.getInstance().getChatManager().getConfig().tweaks.consecutiveCompactChat) {
                     break;
                 }
@@ -429,8 +428,8 @@ public class ChatTab {
                 if(isDivider(StringUtils.cleanColour(nextLine.getChatComponent().getUnformattedText())) &&
                         Math.abs(line.getUpdatedCounter() - nextLine.getUpdatedCounter()) <= 2) {
                     chatLinesWrapped.remove(i);
-                    i--;
                 }
+                i--;
             } else if(HyChat.getInstance().getChatManager().getConfig().tweaks.consecutiveCompactChat) {
                 break;
             }

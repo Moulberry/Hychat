@@ -9,8 +9,17 @@ public class ChatRegexes {
     public static final String ANY_COLOUR_OPT_REGEX = "(?:"+ANY_COLOUR_REGEX+")?";
     public static final String MC_NAME_REGEX = "[a-zA-Z0-9_]+";
     //§dFrom §r§c[§r§fYOUTUBE§r§c] Nullzee§r§7: §r§7moulberry testing new auto-reconnect macro PogU§r
-    public static final String HYPIXEL_RANK_PREFIX_REGEX = ANY_COLOUR_REGEX+"*\\[(?:VIP|VIP\u00A7r\u00A76\\+|MVP|MVP(?:\u00A7r)?"+ANY_COLOUR_REGEX+"\\+|MVP(?:\u00A7r)?"+ANY_COLOUR_REGEX+"\\+\\+)"
-            +"(?:\u00A7r)?"+ANY_COLOUR_OPT_REGEX+"\\]";
+    public static final String VIP = "(?:VIP)";
+    public static final String VIPPLUS = "(?:VIP\u00A7r\u00A76\\+)";
+    public static final String MVP = "(?:MVP)";
+    public static final String MVPPLUS = "(?:MVP(?:\u00A7r)?"+ANY_COLOUR_REGEX+"\\+)";
+    public static final String MVPPLUSPLUS = "(?:MVP(?:\u00A7r)?"+ANY_COLOUR_REGEX+"\\+\\+)";
+    public static final String YOUTUBE = "(?:(?:\u00A7r)?\u00A7fYOUTUBE)";
+    public static final String HYPIXEL_RANK_PREFIX_REGEX = ANY_COLOUR_REGEX+"*\\[" +
+            "(?:"+VIP+"|"+VIPPLUS+"|"+MVP+"|"+MVPPLUS+"|"+MVPPLUSPLUS+"|"+YOUTUBE+")" +
+            "(?:\u00A7r)?"+ANY_COLOUR_OPT_REGEX+"\\]";
+    //§dFrom §r§c[§r§fYOUTUBE§r§c] Nullzee§r§7: §r§7no§r
+    //§dTo §r§c[§r§fYOUTUBE§r§c] Nullzee§r§7: §r§7test§r
     public static final String HYPIXEL_RANKED_NAME_REGEX =  HYPIXEL_RANK_PREFIX_REGEX+" "+MC_NAME_REGEX;
     public static final String HYPIXEL_NAME_REGEX = "(?:"+HYPIXEL_RANK_PREFIX_REGEX+" "+MC_NAME_REGEX+"|\u00A77"+MC_NAME_REGEX+")";
 

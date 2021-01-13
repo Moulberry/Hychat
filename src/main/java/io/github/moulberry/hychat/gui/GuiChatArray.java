@@ -6,10 +6,10 @@ import io.github.moulberry.hychat.chat.ExtendedChatLine;
 import io.github.moulberry.hychat.core.ChromaColour;
 import io.github.moulberry.hychat.core.ColourWheel;
 import io.github.moulberry.hychat.core.GuiElement;
-import io.github.moulberry.hychat.core.util.LerpUtils;
+import io.github.moulberry.hychat.core.util.lerp.LerpUtils;
 import io.github.moulberry.hychat.mixins.GuiScreenAccessor;
 import io.github.moulberry.hychat.core.util.MiscUtils;
-import io.github.moulberry.hychat.core.util.RenderUtils;
+import io.github.moulberry.hychat.core.util.render.RenderUtils;
 import io.github.moulberry.hychat.core.util.StringUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.*;
@@ -94,7 +94,6 @@ public class GuiChatArray extends Gui {
                         String s = chatline.getChatComponent().getFormattedText();
                         int sWidth = Minecraft.getMinecraft().fontRendererObj.getStringWidth(s);
                         String cleanS = StringUtils.cleanColour(s);
-                        boolean centerText = false;
 
                         if(cleanS.trim().length() == 0) {
                             if(lastEmpty && HyChat.getInstance().getChatManager().getConfig().tweaks.stackEmptyLines) {
@@ -105,62 +104,25 @@ public class GuiChatArray extends Gui {
                             lastEmpty = false;
                         }
 
-                        //s = EnumChatFormatting.GRAY + "(" + chatline.getUpdatedCounter() + ")" + s;
-
-                        if(HyChat.getInstance().getChatManager().getConfig().tweaks.connectedDividers && chatline.isDivider()) {
+                        if(HyChat.getInstance().getChatManager().getConfig().tweaks.connectedDividers && chatline.isDivider() &&
+                                    !cleanS.isEmpty()) {
                             char last = cleanS.charAt(cleanS.length()-1);
                             if(last == '-') {
                                 s = s.replaceAll("\\u00A7[0-9a-f]", "$0\u00A7m");
                                 sWidth = Minecraft.getMinecraft().fontRendererObj.getStringWidth(s);
                             } else if(last == '\u25AC') {
-                                int targetLen = chatWidth;
                                 s = s.replaceAll("(\\u00A7r)+$", "");
                                 int chatlineLen = Minecraft.getMinecraft().fontRendererObj.getStringWidth(s);
                                 int deltaLen = Minecraft.getMinecraft().fontRendererObj
                                         .getStringWidth(s+last) - chatlineLen;
                                 if(deltaLen > 0) {
                                     StringBuilder sb = new StringBuilder(s);
-                                    while(chatlineLen + deltaLen < targetLen) {
+                                    while(chatlineLen + deltaLen < chatWidth/chatScale) {
                                         sb.append(last);
                                         chatlineLen += deltaLen;
                                     }
                                     s = sb.toString();
                                     sWidth = Minecraft.getMinecraft().fontRendererObj.getStringWidth(s);
-                                }
-                            }
-                        }
-
-                        if(HyChat.getInstance().getChatManager().getConfig().tweaks.fixCenteredText) {
-                            boolean bold = false;
-                            int spaceCharLen = Minecraft.getMinecraft().fontRendererObj.getCharWidth(' ');
-                            int spaceLen = 0;
-                            for(int i=0; i<cleanS.length(); i++) {
-                                char c = cleanS.charAt(i);
-                                if(c == '\u00A7') {
-                                    if(i+1 < cleanS.length()) {
-                                        char cAfter = cleanS.charAt(i+1);
-                                        if (cAfter != 108 && cAfter != 76) {
-                                            if (cAfter == 114 || cAfter == 82) {
-                                                bold = false;
-                                            }
-                                        } else {
-                                            bold = true;
-                                        }
-                                        i++;
-                                    }
-                                } else if(c == ' ') {
-                                    spaceLen += spaceCharLen;
-                                    if(bold) spaceLen++;
-                                } else {
-                                    break;
-                                }
-                            }
-                            if(spaceLen > 30) {
-                                int center = Math.round(sWidth/2f + spaceLen/2f);
-                                if(center >= 155 && center <= 175) {
-                                    s = s.replaceAll("^(\\u00A7.)+", "").trim();
-                                    sWidth = Minecraft.getMinecraft().fontRendererObj.getStringWidth(s);
-                                    centerText = true;
                                 }
                             }
                         }
@@ -212,10 +174,10 @@ public class GuiChatArray extends Gui {
                         if(textOpacity > 3) {
                             GlStateManager.pushMatrix();
                             int offset = 0;
-                            if(centerText) {
-                                offset = (chatWidth-sWidth)/2;
+                            if(chatline.isCentered()) {
+                                offset = (int)((chatWidth-sWidth*chatScale)/2);
                             } else if(chatBox.getConfig().alignment.rightAligned) {
-                                offset = chatWidth-sWidth;
+                                offset = (int)((chatWidth-sWidth*chatScale));
                             }
                             GlStateManager.translate(x+offset, bottomY-verticalOffset-lineHeight+1, 0);
                             GlStateManager.scale(chatScale, chatScale, 1);
@@ -376,6 +338,7 @@ public class GuiChatArray extends Gui {
             int scrollPos = chatBox.getScrollPos();
             int maxLines = chatLinesWrapped.size();
             int drawnLines = 0;
+            boolean lastEmpty = false;
 
             boolean hoverHorz = mouseX >= x && mouseX <= x+chatWidth+4;
 
@@ -394,6 +357,9 @@ public class GuiChatArray extends Gui {
                     ExtendedChatLine chatline = chatLinesWrapped.get(lineIndex + scrollPos);
 
                     if (chatline != null) {
+                        String s = chatline.getChatComponent().getFormattedText();
+                        String cleanS = StringUtils.cleanColour(s);
+
                         if(HyChat.getInstance().getChatManager().getConfig().tweaks.smartDividers && chatline.isDivider()) {
                             if (lineIndex + scrollPos + 1 < chatLinesWrapped.size()) {
                                 ExtendedChatLine next = chatLinesWrapped.get(lineIndex + scrollPos + 1);
@@ -404,6 +370,16 @@ public class GuiChatArray extends Gui {
                                 }
                             }
                         }
+
+                        if(cleanS.trim().length() == 0) {
+                            if(lastEmpty && HyChat.getInstance().getChatManager().getConfig().tweaks.stackEmptyLines) {
+                                continue;
+                            }
+                            lastEmpty = true;
+                        } else {
+                            lastEmpty = false;
+                        }
+
                         float verticalOffset = drawnLines * lineHeight;
                         if(chatBox.getConfig().alignment.topAligned) {
                             verticalOffset = chatLineCount*lineHeight - lineHeight - drawnLines*lineHeight;
@@ -543,7 +519,7 @@ public class GuiChatArray extends Gui {
             maxLineWidth = Math.max(maxLineWidth, Minecraft.getMinecraft().fontRendererObj.getStringWidth(
                     chatline.getChatComponent().getFormattedText())*chatScale);
         }
-        int w = (int)Math.ceil((maxLineWidth+8)*chatScaleFactor);;
+        int w = (int)Math.ceil((maxLineWidth+8)*chatScaleFactor);
         int h = (int)Math.ceil((lines*lineHeight+4)*chatScaleFactor);
 
         Framebuffer framebuffer = createBindFramebuffer(w, h);

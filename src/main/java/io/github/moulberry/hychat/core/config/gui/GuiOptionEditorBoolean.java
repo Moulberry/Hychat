@@ -2,20 +2,12 @@ package io.github.moulberry.hychat.core.config.gui;
 
 import io.github.moulberry.hychat.core.GuiElementBoolean;
 import io.github.moulberry.hychat.core.config.struct.ConfigProcessor;
-import io.github.moulberry.hychat.core.util.RenderUtils;
-import io.github.moulberry.hychat.core.util.TextRenderUtils;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.util.EnumChatFormatting;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-
-public class GuiConfigEditorBoolean extends GuiConfigEditor {
+public class GuiOptionEditorBoolean extends GuiOptionEditor {
 
     private final GuiElementBoolean bool;
 
-    public GuiConfigEditorBoolean(ConfigProcessor.ProcessedOption option) {
+    public GuiOptionEditorBoolean(ConfigProcessor.ProcessedOption option) {
         super(option);
 
         bool = new GuiElementBoolean(0, 0, (boolean)option.get(), 10, option::set);
