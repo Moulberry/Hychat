@@ -1,25 +1,24 @@
 buildscript {
     repositories {
-        jcenter()
-        maven { url = "https://files.minecraftforge.net/maven" }
+        maven { url = "https://maven.minecraftforge.net/" }
         maven { url = "https://repo.spongepowered.org/maven" }
+        maven { url = "https://jitpack.io" }
     }
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.1-SNAPSHOT'
-		classpath 'org.spongepowered:mixingradle:0.6-SNAPSHOT'
-		classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.4'
+        classpath "com.github.asbyth:ForgeGradle:6f53277"
+        classpath "com.github.xcfrg:MixinGradle:0.6-SNAPSHOT"
+        classpath "com.github.jengelman.gradle.plugins:shadow:6.1.0"
     }
 }
 
-apply plugin: 'java'
-apply plugin: 'net.minecraftforge.gradle.forge'
-apply plugin: 'org.spongepowered.mixin'
-apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: "java"
+apply plugin: "net.minecraftforge.gradle.forge"
+apply plugin: "org.spongepowered.mixin"
+apply plugin: "com.github.johnrengelman.shadow"
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = targetCompatibility = 1.8
 
-version = "1.4-BETA"
+version = "1.12-BETA"
 group= "io.github.moulberry"
 archivesBaseName = "Hychat"
 String modid = "hychat"
@@ -28,19 +27,29 @@ String mixinClassifier = "dep"
 minecraft {
     version = "1.8.9-11.15.1.2318-1.8.9"
     runDir = "run"
-    mappings = "stable_20"
+    
+    replace "@VERSION@": project.version
+    replaceIn "HyChat.java"
+   
+    mappings = "stable_22"
 }
 
 repositories {
     jcenter()
-    maven { url 'https://repo.spongepowered.org/maven/' }
-	flatDir {
-		dirs 'deps'
-	}
+    maven { url "https://repo.spongepowered.org/maven/" }
+    flatDir {
+        dirs "deps"
+    }
 }
 
 dependencies {
-    compile('org.spongepowered:mixin:0.7.11-SNAPSHOT')
+    implementation("org.spongepowered:mixin:0.7.11-SNAPSHOT") {
+        exclude module: "guava"
+        exclude module: "commons-io"
+        exclude module: "gson"
+        exclude module: "launchwrapper"
+    }
+    annotationProcessor("org.spongepowered:mixin:0.7.11-SNAPSHOT")
 }
 
 
@@ -50,42 +59,42 @@ mixin {
 
 jar {
     manifest.attributes(
-		'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
-		'MixinConfigs': "mixins.${modid}.json",
-		'FMLCorePluginContainsFMLMod': true,
-		"ForceLoadAsMod": true
+        "TweakClass": "org.spongepowered.asm.launch.MixinTweaker",
+        "MixinConfigs": "mixins.${modid}.json",
+        "FMLCorePluginContainsFMLMod": true,
+        "ForceLoadAsMod": true
     )
 }
 
 shadowJar {
-	dependencies {
-		include(dependency('org.spongepowered:mixin:0.7.11-SNAPSHOT'))
+    dependencies {
+        include(dependency("org.spongepowered:mixin:0.7.11-SNAPSHOT"))
     }
-	
-	exclude 'module-info.class'
-    exclude 'dummyThing'
-    exclude 'LICENSE.txt'
+    
+    exclude "module-info.class"
+    exclude "dummyThing"
+    exclude "LICENSE.txt"
 
     classifier = mixinClassifier
 }
 
 reobf {
-	shadowJar { 
-		mappingType = 'SEARGE' 
-	}
+    shadowJar { 
+        mappingType = "SEARGE" 
+    }
 }
 
 
 task runClientFix {
-	doLast {
-		String fileName = "${archivesBaseName}-${version}-${mixinClassifier}.jar"
-		ant.move file: "${buildDir}/libs/${fileName}", tofile: "${projectDir}/run/mods/${fileName}"
-		ant.delete file: "${buildDir}/libs/${archivesBaseName}-${version}.jar"
-	}
+    doLast {
+        String fileName = "${archivesBaseName}-${version}-${mixinClassifier}.jar"
+        ant.move file: "${buildDir}/libs/${fileName}", tofile: "${projectDir}/run/mods/${fileName}"
+        ant.delete file: "${buildDir}/libs/${archivesBaseName}-${version}.jar"
+    }
 }
 
 runClient {
-	standardInput = System.in
+    standardInput = System.in
 }
 
 build.dependsOn(shadowJar)
@@ -98,11 +107,11 @@ processResources
     inputs.property "mcversion", project.minecraft.version
 
     from(sourceSets.main.resources.srcDirs) {
-        include 'mcmod.info'
-        expand 'version':project.version, 'mcversion':project.minecraft.version
+        include "mcmod.info"
+        expand "version": project.version, "mcversion": project.minecraft.version
     }
         
     from(sourceSets.main.resources.srcDirs) {
-        exclude 'mcmod.info'
+        exclude "mcmod.info"
     }
 }

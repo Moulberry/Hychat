@@ -483,7 +483,7 @@ public class GuiChatArray extends Gui {
         ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
         int w = chatBox.getChatWidth(scaledResolution);
 
-        List<IChatComponent> list = GuiUtilRenderComponents.func_178908_a(line, w,
+        List<IChatComponent> list = GuiUtilRenderComponents.splitText(line, w,
                 Minecraft.getMinecraft().fontRendererObj, false, false);
 
         for(IChatComponent ichatcomponent : list) {

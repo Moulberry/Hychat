@@ -213,7 +213,7 @@ public class ChatTab {
             }
         }
 
-        List<IChatComponent> list = GuiUtilRenderComponents.func_178908_a(chatComponent, scaledWidth,
+        List<IChatComponent> list = GuiUtilRenderComponents.splitText(chatComponent, scaledWidth,
                 Minecraft.getMinecraft().fontRendererObj, false, false);
 
         int addedLines = 0;
