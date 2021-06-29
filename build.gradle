@@ -24,6 +24,8 @@ archivesBaseName = "Hychat"
 String modid = "hychat"
 String mixinClassifier = "dep"
 
+configurations.runtimeOnly.setCanBeResolved(true)
+
 minecraft {
     version = "1.8.9-11.15.1.2318-1.8.9"
     runDir = "run"

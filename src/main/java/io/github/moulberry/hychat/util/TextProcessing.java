@@ -1,5 +1,8 @@
 package io.github.moulberry.hychat.util;
 
+import com.mojang.realmsclient.util.Pair;
+import io.github.moulberry.hychat.HyChat;
+import io.github.moulberry.hychat.config.GeneralConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.util.ChatComponentText;
@@ -11,6 +14,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TextProcessing {
@@ -57,7 +61,20 @@ public class TextProcessing {
     }
 
     public static String cleanText(String str) {
-        return filterBadWords(substituteHomoglyphs(removeEmptyChars(str)));
+        String cleaned = removeEmptyChars(str);
+        GeneralConfig config = HyChat.getInstance().getChatManager().getConfig();
+        if (config.tweaks.filterBadWords) {
+            StringBuilder builder = new StringBuilder(cleaned);
+            HashSet<Pair<Integer, Integer>> foundBadWords = findBadWords(substituteHomoglyphs(cleaned.toString()));
+            for (Pair<Integer, Integer> indexes : foundBadWords) {
+                builder.replace(indexes.first(), indexes.second(), getBadWordReplacement(indexes.second() - indexes.first()));
+            }
+            cleaned = builder.toString();
+        }
+        if (config.tweaks.replaceHomoglyphs) {
+            cleaned = substituteHomoglyphs(cleaned);
+        }
+        return cleaned;
     }
 
     public static String substituteHomoglyphs(String str) {
@@ -87,14 +104,19 @@ public class TextProcessing {
         return sb.toString();
     }
 
-    public static String filterBadWords(String str) {
+    public static HashSet<Pair<Integer, Integer>> findBadWords(String str) {
         if(badWordSet == null) generateBadWordSet();
+        HashSet<Pair<Integer, Integer>> found = new HashSet<>();
 
         for(String filter : badWordSet) {
-            str = str.replaceAll("(?i)"+ Pattern.quote(filter), getBadWordReplacement(filter.length()));
+            Pattern pattern = Pattern.compile("(?i)"+ Pattern.quote(filter));
+            Matcher matcher = pattern.matcher(str);
+            while (matcher.find()) {
+                found.add(Pair.of(matcher.start(), matcher.end()));
+            }
         }
 
-        return str;
+        return found;
     }
 
     private static String getBadWordReplacement(int len) {

@@ -74,6 +74,22 @@ public class GeneralConfig extends Config {
         )
         @ConfigEditorBoolean
         public boolean stackEmptyLines = true;
+
+        @Expose
+        @ConfigOption(
+                name = "Filter bad words",
+                desc = "Replaces bad words in messages with *s"
+        )
+        @ConfigEditorBoolean
+        public boolean filterBadWords = true;
+
+        @Expose
+        @ConfigOption(
+                name = "Replace homoglyphs",
+                desc = "Replaces characters that look similar to the real ones with normal ascii characters"
+        )
+        @ConfigEditorBoolean
+        public boolean replaceHomoglyphs = true;
     }
 
 }
