@@ -18,7 +18,7 @@ apply plugin: "com.github.johnrengelman.shadow"
 
 sourceCompatibility = targetCompatibility = 1.8
 
-version = "1.12-BETA"
+version = "1.12.2-BETA"
 group= "io.github.moulberry"
 archivesBaseName = "Hychat"
 String modid = "hychat"
