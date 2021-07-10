@@ -1,7 +1,6 @@
 package io.github.moulberry.hychat.chat;
 
 import net.minecraft.util.EnumChatFormatting;
-import org.omg.CORBA.Any;
 
 public class ChatRegexes {
 

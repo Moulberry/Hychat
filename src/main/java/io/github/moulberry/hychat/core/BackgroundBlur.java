@@ -1,5 +1,6 @@
 package io.github.moulberry.hychat.core;
 
+import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.core.util.render.RenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -31,6 +32,7 @@ public class BackgroundBlur {
 
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
+        if (HyChat.getInstance().getChatManager().getFocusedChat().getConfig().appearance.compatibilityMode) return;
         shouldBlur = true;
     }
 

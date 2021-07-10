@@ -58,6 +58,7 @@ public class HyChat {
 
         MinecraftForge.EVENT_BUS.register(new EventListener());
         BackgroundBlur.registerListener();
+        getChatManager().openEditor(getChatManager().getFocusedChat());
     }
 
     public File getChatManagerConfig() {

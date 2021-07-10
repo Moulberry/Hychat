@@ -61,6 +61,14 @@ public class ChatboxConfig extends Config {
                 values = { "No Shadow", "Shadow", "Full Shadow" }
         )
         public int tabTextShadow = 0;
+
+        @Expose
+        @ConfigOption(
+                name = "Compatibility mode",
+                desc = "Disables background blur which can fix some rendering issues"
+        )
+        @ConfigEditorBoolean
+        public boolean compatibilityMode = true;
     }
 
 }
