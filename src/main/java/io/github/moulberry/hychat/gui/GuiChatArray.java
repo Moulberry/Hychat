@@ -201,7 +201,7 @@ public class GuiChatArray extends Gui {
                             GlStateManager.popMatrix();
                         }
 
-                        if(overlays && mouseY >= top && mouseY < bottom && !chatBox.isEditable()) {
+                        if(overlays && mouseY >= top && mouseY < bottom && !chatBox.showEditOverlay()) {
                             Minecraft.getMinecraft().getTextureManager().bindTexture(Resources.Icons.COPY);
                             GlStateManager.color(1, 1, 1, 1);
                             int unscaledLineHeight = Math.round(lineHeight/chatScale);
@@ -261,7 +261,7 @@ public class GuiChatArray extends Gui {
             //GlStateManager.popMatrix();
         }
 
-        if(chatOpen) {
+        if(chatOpen && !chatBox.showEditOverlay()) {
             GlStateManager.color(1, 1, 1, 1);
             int top = (int)(bottomY - drawnLines*lineHeight);
             boolean locked = chatBox.isLocked();
@@ -307,7 +307,7 @@ public class GuiChatArray extends Gui {
     }
 
     public boolean keyboardInput() {
-        if(chatBox.isEditable()) {
+        if(chatBox.showEditOverlay()) {
             return false;
         }
         if(activeGuiElement != null) {
@@ -317,7 +317,7 @@ public class GuiChatArray extends Gui {
     }
 
     public void mouseInput(List<ExtendedChatLine> chatLinesWrapped, int mouseX, int mouseY, int x, int bottomY) {
-        if(chatBox.isEditable()) {
+        if(chatBox.showEditOverlay()) {
             return;
         }
         if(activeGuiElement != null) {
@@ -540,7 +540,7 @@ public class GuiChatArray extends Gui {
     }
 
     public IChatComponent getHoveredComponent(List<ExtendedChatLine> chatLinesWrapped, int mouseX, int mouseY, int x, int bottomY) {
-        if (!isChatOpen() || chatBox.isEditable()) {
+        if (!isChatOpen() || chatBox.showEditOverlay()) {
             return null;
         } else {
             ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());

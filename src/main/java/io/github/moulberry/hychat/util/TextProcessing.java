@@ -37,7 +37,7 @@ public class TextProcessing {
 
             Object[] args = trans.getFormatArgs();
             Object[] newArgs = new Object[args.length];
-            for(int i=0; i<trans.getFormatArgs().length; i++) {
+            for(int i = 0; i < trans.getFormatArgs().length; i++) {
                 if(args[i] instanceof IChatComponent) {
                     newArgs[i] = cleanChatComponent((IChatComponent) args[i]);
                 } else {
@@ -64,7 +64,7 @@ public class TextProcessing {
         if(homoglyphMap == null) generateHomoglyphMap();
 
         StringBuilder sb = new StringBuilder();
-        for(int i=0; i<str.length(); i++) {
+        for(int i = 0; i < str.length(); i++) {
             char c = str.charAt(i);
             if(homoglyphMap.containsKey(c)) {
                 c = homoglyphMap.get(c);
@@ -78,7 +78,7 @@ public class TextProcessing {
         if(emptyCharSet == null) generateEmptyCharSet();
 
         StringBuilder sb = new StringBuilder();
-        for(int i=0; i<str.length(); i++) {
+        for(int i = 0; i < str.length(); i++) {
             char c = str.charAt(i);
             if(!emptyCharSet.contains(c)) {
                 sb.append(c);
@@ -91,7 +91,7 @@ public class TextProcessing {
         if(badWordSet == null) generateBadWordSet();
 
         for(String filter : badWordSet) {
-            str = str.replaceAll("(?i)"+ Pattern.quote(filter), getBadWordReplacement(filter.length()));
+            str = str.replaceAll("(?i)" + Pattern.quote(filter), getBadWordReplacement(filter.length()));
         }
 
         return str;
@@ -103,7 +103,7 @@ public class TextProcessing {
         }
 
         StringBuilder sb = new StringBuilder();
-        for(int i=0; i<len; i++) sb.append("*");
+        for(int i = 0; i < len; i++) sb.append("*");
         String repl = sb.toString();
 
         badWordReplacements.put(len, repl);
@@ -120,7 +120,7 @@ public class TextProcessing {
                 line = line.trim();
                 if(!line.isEmpty() && !line.startsWith("#")) {
                     char normalChar = line.charAt(0);
-                    for(int i=1; i<line.length(); i++) {
+                    for(int i = 1; i < line.length(); i++) {
                         char homoglyph = line.charAt(i);
                         if(homoglyph == '\u00A7') {
                             System.out.println("Substituting colour code for " + normalChar + " at index " + i);
@@ -138,7 +138,7 @@ public class TextProcessing {
         emptyCharSet = new HashSet<>();
 
         FontRenderer fr = Minecraft.getMinecraft().fontRendererObj;
-        for(char c=0; c<Character.MAX_VALUE; c++) {
+        for(char c = 0; c < Character.MAX_VALUE; c++) {
             if(fr.getCharWidth(c) == 0) {
                 emptyCharSet.add(c);
             }

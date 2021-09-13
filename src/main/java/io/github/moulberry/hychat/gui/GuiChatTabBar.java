@@ -1,5 +1,6 @@
 package io.github.moulberry.hychat.gui;
 
+import com.google.common.collect.Lists;
 import com.google.gson.annotations.Expose;
 import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.Resources;
@@ -10,6 +11,7 @@ import io.github.moulberry.hychat.core.util.render.RenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
@@ -20,6 +22,12 @@ public class GuiChatTabBar {
 
     @Expose private int selectedTab = 0;
     @Expose private List<ChatTab> tabs;
+
+    private static int SPLIT_Y_THRESHOLD = 20;
+    private static int SPLIT_X_THRESHOLD = 30;
+
+    public boolean movingSingleTab = false;
+    public boolean addingTabToOtherChatBox = false;
 
     public GuiChatBox chatBox;
     private int selectedTabX = 0;
@@ -36,39 +44,128 @@ public class GuiChatTabBar {
         this.tabs = tabs;
     }
 
+    public boolean shouldSplitTab(int mouseX, int mouseY) {
+        if(!movingTab) return false;
+
+        return Math.abs(selectedTabMouseY - mouseY) > SPLIT_Y_THRESHOLD;
+    }
+
     public void mouseInput(float mouseX, float mouseY, int x, int y) {
-        if(Mouse.getEventButton() == 0) {
+        addingTabToOtherChatBox = false;
+
+        if(movingSingleTab && Mouse.getEventButton() != -1) {
+            movingSingleTab = false;
+        }
+
+        if(chatBox.isEditing()) {
             movingTab = false;
-            if(Mouse.getEventButtonState() && mouseY >= y && mouseY <= y+13) {
+        } else if(Mouse.getEventButton() == 0) {
+            movingTab = false;
+            if(Mouse.getEventButtonState() && mouseY >= y && mouseY <= y + 13) {
                 FontRenderer fr = Minecraft.getMinecraft().fontRendererObj;
 
                 int tabLeft = x;
                 int index = 0;
                 for(ChatTab tab : tabs) {
-                    int tabWidth = fr.getStringWidth(tab.getTabName())+4;
+                    int tabWidth = fr.getStringWidth(tab.getTabName()) + 4;
 
-                    if(mouseX >= tabLeft && mouseX <= tabLeft+tabWidth) {
+                    if(mouseX >= tabLeft && mouseX <= tabLeft + tabWidth) {
                         chatBox.resetScroll();
                         selectedTab = index;
-                        selectedTabX = tabLeft - (int)mouseX;
-                        selectedTabY = y - (int)mouseY;
-                        selectedTabMouseX = (int)mouseX;
-                        selectedTabMouseY = (int)mouseY;
+                        selectedTabX = tabLeft - (int) mouseX;
+                        selectedTabY = y - (int) mouseY;
+                        selectedTabMouseX = (int) mouseX;
+                        selectedTabMouseY = (int) mouseY;
                         if(!chatBox.isLocked()) {
                             movingTab = true;
                         }
                     }
 
                     index++;
-                    tabLeft += tabWidth+1;
+                    tabLeft += tabWidth + 1;
                 }
             }
-        }
-        if(chatBox.isEditing()) {
+        } else if(!chatBox.showEditOverlay()) {
+            movingSingleTab = false;
+            addingTabToOtherChatBox = false;
             movingTab = false;
-        }
-        if(movingTab && Mouse.getEventButton() == -1 &&
+            return;
+        } else if(Mouse.getEventButton() != -1 && !Mouse.getEventButtonState() && movingTab) {
+            ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
+
+            GuiChatBox addTabTo = null;
+            for(GuiChatBox chatBox : HyChat.getInstance().getChatManager().getAllChatBoxes()) {
+                if(chatBox == this.chatBox) continue;
+
+                int chatBoxX = chatBox.getX(scaledResolution);
+                int chatBoxY = chatBox.getY(scaledResolution);
+                int chatBoxWidth = chatBox.getChatWidth(scaledResolution);
+                int chatBoxHeight = chatBox.getChatHeight(scaledResolution);
+
+                if(mouseX > chatBoxX && mouseX < chatBoxX + chatBoxWidth &&
+                        mouseY > chatBoxY - chatBoxHeight && mouseY < chatBoxY) {
+                    addTabTo = chatBox;
+                    break;
+                }
+            }
+
+            if(addTabTo != null && addTabTo.tabBar != null) {
+                addTabTo.tabBar.tabs.add(getSelectedTab());
+                tabs.remove(selectedTab).refreshChat(addTabTo.tabBar, addTabTo.getChatWidth(scaledResolution));
+
+                if(tabs.size() == 0) {
+                    HyChat.getInstance().getChatManager().removeChatBox(chatBox);
+                }
+
+                selectedTab = 0;
+            } else if(shouldSplitTab((int)mouseX, (int)mouseY) && tabs.size() > 1) {
+                addTabTo = HyChat.getInstance().getChatManager().createNewChatBox(selectedTabX+(int)mouseX,
+                        y + ((int)mouseY - selectedTabMouseY), 100, 50, Lists.newArrayList(getSelectedTab()));
+                tabs.remove(selectedTab).refreshChat(addTabTo.tabBar, addTabTo.getChatWidth(scaledResolution));
+                selectedTab = 0;
+            }
+
+            movingTab = false;
+        } else if(movingTab && Mouse.getEventButton() == -1 &&
                 !Mouse.getEventButtonState() && Mouse.isButtonDown(0)) {
+            ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
+
+            if(tabs.size() == 1 || shouldSplitTab((int)mouseX, (int)mouseY)) {
+                for(GuiChatBox chatBox : HyChat.getInstance().getChatManager().getAllChatBoxes()) {
+                    if(chatBox == this.chatBox) continue;
+                    if(!chatBox.isEditable()) continue;
+
+                    int chatBoxX = chatBox.getX(scaledResolution);
+
+                    int chatBoxY = chatBox.getY(scaledResolution);
+                    int chatBoxWidth = chatBox.getChatWidth(scaledResolution);
+                    int chatBoxHeight = chatBox.getChatHeight(scaledResolution);
+
+                    if(mouseX > chatBoxX && mouseX < chatBoxX + chatBoxWidth &&
+                        mouseY > chatBoxY - chatBoxHeight && mouseY < chatBoxY) {
+
+                        addingTabToOtherChatBox = true;
+                    }
+                }
+            }
+
+            movingSingleTab = tabs.size() == 1 && movingTab;
+
+            if(movingSingleTab) {
+                int deltaX = -((int)mouseX - selectedTabMouseX);
+                int deltaY = -((int)mouseY - selectedTabMouseY);
+
+                deltaX = chatBox.moveX(-deltaX, chatBox.getChatWidth(scaledResolution), scaledResolution.getScaledWidth());
+                deltaY = chatBox.moveY(-deltaY, chatBox.getChatHeight(scaledResolution), scaledResolution.getScaledHeight());
+
+                selectedTabX += deltaX;
+                selectedTabY += deltaY;
+                selectedTabMouseX += deltaX;
+                selectedTabMouseY += deltaY;
+
+                return;
+            }
+
             FontRenderer fr = Minecraft.getMinecraft().fontRendererObj;
             int tabLeft = x;
             int moveDir = 0;
@@ -141,20 +238,31 @@ public class GuiChatTabBar {
         GlStateManager.enableDepth();
         GlStateManager.depthFunc(GL11.GL_LESS);
 
-        boolean showMovingTab = movingTab && Math.abs(mouseX - selectedTabMouseX) > 3;
+        boolean shouldSplit = shouldSplitTab((int)mouseX, (int)mouseY) || addingTabToOtherChatBox;
+        boolean showMovingTab = movingTab && tabs.size() > 1 && (shouldSplit || Math.abs(mouseX - selectedTabMouseX) > 3);
 
-        if(showMovingTab) {
+        if(showMovingTab && !addingTabToOtherChatBox) {
             ChatTab tab = getSelectedTab();
             int tabWidth = fr.getStringWidth(tab.getTabName())+4;
             int tabTextColour = 0xffffffff;
             int tabBackgroundColour = ChromaColour.specialToChromaRGB(chatBox.getBackgroundColour());
 
+            int movingY = y;
+            if(shouldSplit) {
+                movingY = y + ((int)mouseY - selectedTabMouseY);
+            }
+
             GlStateManager.translate(0, 0, 2f);
-            Gui.drawRect(selectedTabX+(int)mouseX, y, selectedTabX+(int)mouseX+tabWidth,
-                    y+13, tabBackgroundColour);
+            Gui.drawRect(selectedTabX+(int)mouseX, movingY, selectedTabX+(int)mouseX+tabWidth,
+                    movingY+13, tabBackgroundColour);
             GlStateManager.translate(0, 0, 1f);
-            fr.drawString(tab.getTabName(), selectedTabX+(int)mouseX+2, y+3, tabTextColour, false);
+            fr.drawString(tab.getTabName(), selectedTabX+(int)mouseX+2, movingY+3, tabTextColour, false);
             GlStateManager.translate(0, 0, -3f);
+
+            if(shouldSplit) {
+                Gui.drawRect(selectedTabX+(int)mouseX, movingY,
+                        selectedTabX+(int)mouseX+100, movingY-50, 0x80000000);
+            }
         }
 
         int index = 0;
@@ -218,8 +326,10 @@ public class GuiChatTabBar {
                 GlStateManager.depthFunc(GL11.GL_LEQUAL);
             }
 
-            index++;
-            tabLeft += tabWidth+1;
+            if(!shouldSplit || !selected) {
+                index++;
+                tabLeft += tabWidth+1;
+            }
         }
 
         GlStateManager.depthFunc(GL11.GL_LEQUAL);

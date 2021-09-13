@@ -471,14 +471,6 @@ public class ChatTab {
             return Objects.hash(siblingHashes);
         }
 
-        /*if(chatComponent instanceof ChatComponentIgnored) {
-            if(chatComponent.getSiblings().isEmpty()) {
-                return 0;
-            } else {
-                return Objects.hash(siblingHashes);
-            }
-        }*/
-
         return Objects.hash(chatComponent.getUnformattedTextForChat(),
                 siblingHashes,
                 getChatStyleHash(chatComponent.getChatStyle()));

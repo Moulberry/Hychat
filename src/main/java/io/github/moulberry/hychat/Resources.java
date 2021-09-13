@@ -29,6 +29,16 @@ public class Resources {
     public static class Overlay {
         public static final ResourceLocation NOTIF = new ResourceLocation("hychat:overlay/notif.png");
         public static final ResourceLocation HAMBURGER = new ResourceLocation("hychat:overlay/hamburger.png");
+
+        public static class Background {
+            public static final ResourceLocation ON = new ResourceLocation("hychat:overlay/button_background_on.png");
+            public static final ResourceLocation OFF = new ResourceLocation("hychat:overlay/button_background_off.png");
+        }
+
+        public static class Configure {
+            public static final ResourceLocation ON = new ResourceLocation("hychat:overlay/configure_on.png");
+            public static final ResourceLocation OFF = new ResourceLocation("hychat:overlay/configure_off.png");
+        }
     }
 
     public static class CursorIcons {

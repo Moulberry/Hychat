@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
 import io.github.moulberry.hychat.Resources;
 import io.github.moulberry.hychat.config.GeneralConfig;
+import io.github.moulberry.hychat.core.CursorManager;
 import io.github.moulberry.hychat.core.util.render.RenderUtils;
 import io.github.moulberry.hychat.core.util.StringUtils;
 import io.github.moulberry.hychat.core.util.render.TextRenderUtils;
@@ -40,9 +41,14 @@ public class ChatManager {
     @Expose private List<GuiChatBox> extraChatBoxes = new ArrayList<>();
     @Expose private final GeneralConfig config = new GeneralConfig();
 
+    private List<GuiChatBox> toAdd = new ArrayList<>();
+    private Set<GuiChatBox> toRemove = new HashSet<>();
+
     private GuiChatBox focusedChat = null;
     private GuiEditConfig editor = null;
     private final HashSet<Integer> unviewedMessages = new HashSet<>();
+
+    private boolean editing = false;
 
     private HashMap<String, Conversation> conversations = new HashMap<>();
 
@@ -53,11 +59,11 @@ public class ChatManager {
     private void resetPrimaryChatBox() {
         List<ChatTab> tabs = new ArrayList<>();
         tabs.add(new ChatTab("All").alwaysMatch());
-        tabs.add(new ChatTab("Filtered")
+        /*tabs.add(new ChatTab("Filtered")
                 .withIgnore("{RESET}{HYPIXEL_NAME}{WHITE} {GOLD}[a-zA-Z]+ into the lobby!{RESET}")
                 .withIgnore("{RESET} (?:{ANY_COLOUR}>){3}{RESET} {HYPIXEL_NAME}{WHITE} {GOLD}[a-zA-Z]+ into the lobby!{RESET} (?:{ANY_COLOUR}<){3}{RESET}")
                 .withIgnore("{ANY_COLOUR_OPT}{MC_NAME} {RESET}{WHITE}found a .+ {RESET}{AQUA}Mystery Box{RESET}{WHITE}!{RESET}")
-                .withIgnore("{AQUA}\\[Mystery Box\\] {ANY_COLOUR}+{MC_NAME} {WHITE}found a .+"));
+                .withIgnore("{AQUA}\\[Mystery Box\\] {ANY_COLOUR}+{MC_NAME} {WHITE}found a .+"));*/
         tabs.add(new ChatTab("Party")
                 .withMatches(PARTY)
                 .withMessagePrefix("/pc "));
@@ -65,16 +71,40 @@ public class ChatManager {
                 .withMatch(RESET.toString()+DARK_GREEN+"Guild > (.*)")
                 .withMatch(RESET.toString()+DARK_GREEN+"G > (.*)")
                 .withMessagePrefix("/gc "));
-        tabs.add(new ChatTab("Private")
+        /*tabs.add(new ChatTab("Private")
                 .withMatches(PARTY)
                 .withMatch(RESET.toString()+DARK_GREEN+"Guild > (.*)")
                 .withMatch(RESET.toString()+DARK_GREEN+"G > (.*)")
-                .withMessagePrefix("/gc "));
+                .withMessagePrefix("/gc "));*/
         primaryChatBox = new GuiChatBox(tabs);
+    }
+
+    public void removeChatBox(GuiChatBox chatBox) {
+        toRemove.add(chatBox);
+    }
+
+    public GuiChatBox createNewChatBox(int x, int y, int width, int height, List<ChatTab> tabs) {
+        GuiChatBox box = new GuiChatBox(x, y, width, height, tabs);
+        toAdd.add(box);
+        return box;
+    }
+
+    public int getChatInputLengthReduction() {
+        return 18;
+    }
+
+    public boolean isEditing() {
+        return editing;
     }
 
     public void openEditor(GuiChatBox chatBox) {
         editor = new GuiEditConfig(chatBox.getConfig());
+    }
+
+    public List<GuiChatBox> getAllChatBoxes() {
+        ArrayList arr = new ArrayList<>(extraChatBoxes);
+        arr.add(0, primaryChatBox);
+        return arr;
     }
 
     public void saveTo(File file) {
@@ -129,6 +159,21 @@ public class ChatManager {
     }
 
     public void tickChatBoxes() {
+        extraChatBoxes.addAll(toAdd);
+        toAdd.clear();
+
+        if(primaryChatBox.getSelectedTab() == null) toRemove.add(primaryChatBox);
+        for(GuiChatBox chatBox : extraChatBoxes) {
+            if(chatBox.getSelectedTab() == null) toRemove.add(chatBox);
+        }
+
+        if(toRemove.contains(primaryChatBox) && !extraChatBoxes.isEmpty()) {
+            primaryChatBox = extraChatBoxes.get(0);
+            extraChatBoxes.remove(primaryChatBox);
+        }
+        extraChatBoxes.removeAll(toRemove);
+        toRemove.clear();
+
         primaryChatBox.tick();
         for(GuiChatBox chatBox : extraChatBoxes) {
             chatBox.tick();
@@ -163,15 +208,27 @@ public class ChatManager {
             return;
         }
 
+        CursorManager.reset();
+
         primaryChatBox.renderOverlay(mouseX, mouseY, partialTicks);
         for(GuiChatBox chatBox : extraChatBoxes) {
             chatBox.renderOverlay(mouseX, mouseY, partialTicks);
         }
+
+        CursorManager.updateCursor();
+
         if(!unviewedMessages.isEmpty() && primaryChatBox.getScrollPos() == 0 && primaryChatBox.getSelectedTab().getAlwaysMatch()) {
             unviewedMessages.clear();
         }
 
         ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
+        GlStateManager.color(1, 1, 1, 1);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(editing ? Resources.Overlay.Background.ON : Resources.Overlay.Background.OFF);
+        RenderUtils.drawTexturedRect(scaledResolution.getScaledWidth()-18, scaledResolution.getScaledHeight()-18, 16, 16);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(editing ? Resources.Overlay.Configure.ON : Resources.Overlay.Configure.OFF);
+        RenderUtils.drawTexturedRect(scaledResolution.getScaledWidth()-18, scaledResolution.getScaledHeight()-18, 16, 16);
+
+        /*ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
         Minecraft.getMinecraft().getTextureManager().bindTexture(Resources.Overlay.HAMBURGER);
         GlStateManager.color(1, 1, 1, 1);
         RenderUtils.drawTexturedRect(scaledResolution.getScaledWidth()-16, scaledResolution.getScaledHeight()-30, 14, 14);
@@ -183,7 +240,7 @@ public class ChatManager {
         String num = ""+conversations.size();
         int len = Minecraft.getMinecraft().fontRendererObj.getStringWidth(num);
         TextRenderUtils.drawStringScaled(num, Minecraft.getMinecraft().fontRendererObj,
-                scaledResolution.getScaledWidth()-5f-len/4f, scaledResolution.getScaledHeight()-29, false, 0xffffffff, 0.5f);
+                scaledResolution.getScaledWidth()-5f-len/4f, scaledResolution.getScaledHeight()-29, false, 0xffffffff, 0.5f);*/
 
         GlStateManager.color(1, 1, 1, 1);
         GlStateManager.enableBlend();
@@ -214,6 +271,15 @@ public class ChatManager {
         if(editor != null && editor.mouseInput(mouseX, mouseY)) {
             return;
         }
+
+        ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
+        if(Mouse.getEventButtonState()) {
+            if(mouseX >= scaledResolution.getScaledWidth()-18 && mouseX < scaledResolution.getScaledWidth()-2 &&
+                    mouseY >= scaledResolution.getScaledHeight()-18 && mouseY < scaledResolution.getScaledHeight()-2) {
+                editing = !editing;
+            }
+        }
+
         primaryChatBox.mouseInput(mouseX, mouseY);
         for(GuiChatBox chatBox : extraChatBoxes) {
             chatBox.mouseInput(mouseX, mouseY);
@@ -256,7 +322,7 @@ public class ChatManager {
     public void setChatLine(IChatComponent chatComponent, int chatLineId, int updateCounter, boolean refresh) {
         if(refresh) return;
 
-        Matcher matcher = messagePattern.matcher(chatComponent.getFormattedText());
+        /*Matcher matcher = messagePattern.matcher(chatComponent.getFormattedText());
         if(matcher.matches()) {
             String hypixelName = matcher.group(1);
             String[] split = hypixelName.split(" ");
@@ -279,9 +345,9 @@ public class ChatManager {
                                 .withMatch("{LIGHT_PURPLE}To {ANY_COLOUR_OPT}"+Pattern.quote(hypixelName)+"{RESET}{GRAY}: .+{RESET}")
                                 .withMatch("{LIGHT_PURPLE}From {ANY_COLOUR_OPT}"+Pattern.quote(hypixelName)+"{RESET}{GRAY}: .+{RESET}")
                                 .withMessagePrefix("/msg "+playerName+" ")
-                );*/
+                );
             //}
-        }
+        }*/
 
         int uniqueId = UUID.randomUUID().hashCode();
         unviewedMessages.add(uniqueId);

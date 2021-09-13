@@ -1,12 +1,13 @@
 package io.github.moulberry.hychat.gui;
 
 import com.google.gson.annotations.Expose;
+import io.github.moulberry.hychat.HyChat;
 import io.github.moulberry.hychat.Resources;
 import io.github.moulberry.hychat.config.ChatboxConfig;
 import io.github.moulberry.hychat.core.ChromaColour;
+import io.github.moulberry.hychat.core.CursorManager;
 import io.github.moulberry.hychat.mixins.GuiScreenAccessor;
 import io.github.moulberry.hychat.chat.ChatTab;
-import io.github.moulberry.hychat.core.util.MiscUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiChat;
@@ -14,7 +15,6 @@ import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.MathHelper;
-import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 import java.util.List;
@@ -56,8 +56,16 @@ public class GuiChatBox {
         tabBar = null;
     }
 
-    public GuiChatBox(List<ChatTab> tabs) {
+    public GuiChatBox(int x, int y, int width, int height, List<ChatTab> tabs) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
         this.tabBar = new GuiChatTabBar(this, tabs);
+    }
+
+    public GuiChatBox(List<ChatTab> tabs) {
+        this(2, -28, 320, 180, tabs);
     }
 
     public void deleteChatLine(int lineId) {
@@ -119,7 +127,7 @@ public class GuiChatBox {
     }
 
     public ChatTab getSelectedTab() {
-        return tabBar.getSelectedTab();
+        return tabBar == null ? null : tabBar.getSelectedTab();
     }
 
     public void scroll(int scroll) {
@@ -194,12 +202,14 @@ public class GuiChatBox {
     }
 
     public void render(int mouseX, int mouseY, float partialTicks) {
+        if(getSelectedTab() == null || tabBar == null || (tabBar.addingTabToOtherChatBox && tabBar.movingSingleTab)) return;
+
         ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
         int x = getX(scaledResolution);
         int y = getY(scaledResolution);
         int width = getChatWidth(scaledResolution);
         int height = getChatHeight(scaledResolution);
-        boolean editing = isEditable();
+        boolean editing = showEditOverlay();
         if(editing) {
             GlStateManager.enableDepth();
             GlStateManager.translate(0, 0, 1);
@@ -263,9 +273,12 @@ public class GuiChatBox {
         return -1;
     }
 
+    public boolean showEditOverlay() {
+        return isEditable();
+    }
+
     public boolean isEditable() {
-        return !locked && Minecraft.getMinecraft().currentScreen instanceof GuiChat &&
-                Keyboard.isKeyDown(Keyboard.KEY_LCONTROL);
+        return !locked && Minecraft.getMinecraft().currentScreen instanceof GuiChat && HyChat.getInstance().getChatManager().isEditing();
     }
 
     public boolean isEditing() {
@@ -301,6 +314,8 @@ public class GuiChatBox {
     }
 
     public void renderOverlay(int mouseX, int mouseY, float partialTicks) {
+        if(getSelectedTab() == null) return;
+
         ScaledResolution scaledResolution = new ScaledResolution(Minecraft.getMinecraft());
         int x = getX(scaledResolution);
         int y = getY(scaledResolution);
@@ -325,20 +340,16 @@ public class GuiChatBox {
             }
             switch(getGrabState(grabbedSide)) {
                 case MOVE:
-                    MiscUtils.setCursor(Resources.CursorIcons.MOVE, 11, 11); break;
+                    CursorManager.setCursor(Resources.CursorIcons.MOVE, 11, 11); break;
                 case EW:
-                    MiscUtils.setCursor(Resources.CursorIcons.EW, 11, 4); break;
+                    CursorManager.setCursor(Resources.CursorIcons.EW, 11, 4); break;
                 case NS:
-                    MiscUtils.setCursor(Resources.CursorIcons.NS, 4, 11); break;
+                    CursorManager.setCursor(Resources.CursorIcons.NS, 4, 11); break;
                 case NESW:
-                    MiscUtils.setCursor(Resources.CursorIcons.NESW, 11, 11); break;
+                    CursorManager.setCursor(Resources.CursorIcons.NESW, 11, 11); break;
                 case NWSE:
-                    MiscUtils.setCursor(Resources.CursorIcons.NWSE, 11, 11); break;
-                default:
-                    MiscUtils.resetCursor();
+                    CursorManager.setCursor(Resources.CursorIcons.NWSE, 11, 11); break;
             }
-        } else {
-            MiscUtils.resetCursor();
         }
     }
 
@@ -423,6 +434,8 @@ public class GuiChatBox {
         int width = getChatWidth(scaledResolution);
         int height = getChatHeight(scaledResolution);
         tabBar.mouseInput(mouseX, mouseY, x, y);
+        if(getSelectedTab() == null) return;
+
         chatArray.mouseInput(getSelectedTab().getChatLines(), mouseX, mouseY, x, y);
 
         int button = Mouse.getEventButton();
